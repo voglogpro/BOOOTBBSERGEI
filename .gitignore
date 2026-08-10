@@ -1,0 +1,22 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Runtime data and Telegram user sessions are secrets.
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.session
+*.session-journal
+*.session-wal
+*.session-shm
+*.session.cooldown.json
+*.session.cooldown.json.tmp
+*.login-cooldown.json
+*.login-cooldown.json.tmp
