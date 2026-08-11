@@ -1,21 +1,32 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
+import io
 import json
 import re
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlencode
 
+from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
+from aiohttp.test_utils import unused_port
 from cryptography.fernet import Fernet
 
 from server.parser_login import LoginStatus, ParserLoginError
 from server.settings import ServerSettings
-from server.web_app import create_app
+from server.web_app import (
+    DIAGNOSTICS_TASK_KEY,
+    LOGIN_SERVICE_KEY,
+    _cleanup_login_service,
+    create_app,
+)
 
 
 BOT_TOKEN = "123456:web-test-secret"
@@ -35,7 +46,7 @@ def signed_header(*, user_id: int = 111, tamper: bool = False) -> str:
     return f"tma {urlencode(fields)}"
 
 
-def settings(path: Path) -> ServerSettings:
+def settings(path: Path, *, port: int = 8080) -> ServerSettings:
     return ServerSettings(
         bot_token=BOT_TOKEN,
         admin_telegram_ids=frozenset({111}),
@@ -45,7 +56,7 @@ def settings(path: Path) -> ServerSettings:
         session_encryption_key=Fernet.generate_key().decode("ascii"),
         encrypted_session_path=path,
         host="0.0.0.0",
-        port=8080,
+        port=port,
         init_data_max_age_seconds=300,
         login_challenge_ttl_seconds=300,
     )
@@ -103,6 +114,7 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         app = create_app(
             settings(Path(self.temp_dir.name) / "reader.enc"),
             login_service=self.service,  # type: ignore[arg-type]
+            runtime_diagnostics=False,
         )
         self.client = TestClient(TestServer(app))
         await self.client.start_server()
@@ -214,6 +226,75 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(second_nonce_match)
         assert second_nonce_match is not None
         self.assertNotEqual(second_nonce_match.group(1), nonce_match.group(1))
+
+    async def test_diagnostic_log_never_includes_query_string(self) -> None:
+        captured = io.StringIO()
+        with redirect_stdout(captured):
+            response = await self.client.get(
+                "/health?phone=%2B79991234567&code=12345"
+            )
+            unmatched = await self.client.get("/private/67890?password=hidden")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(unmatched.status, 404)
+        diagnostic_log = captured.getvalue()
+        self.assertIn("[http] GET /health -> 200", diagnostic_log)
+        self.assertIn("[http] GET <unmatched> -> 404", diagnostic_log)
+        self.assertNotIn("79991234567", diagnostic_log)
+        self.assertNotIn("12345", diagnostic_log)
+        self.assertNotIn("67890", diagnostic_log)
+        self.assertNotIn("hidden", diagnostic_log)
+
+    async def test_runtime_selfcheck_reaches_local_health_endpoint(self) -> None:
+        port = unused_port()
+        service = FakeLoginService()
+        app = create_app(
+            settings(Path(self.temp_dir.name) / "selfcheck.enc", port=port),
+            login_service=service,  # type: ignore[arg-type]
+        )
+        runner = web.AppRunner(app)
+        captured = io.StringIO()
+        with (
+            patch(
+                "server.web_app.SELF_CHECK_INITIAL_DELAY_SECONDS",
+                0.05,
+            ),
+            redirect_stdout(captured),
+        ):
+            await runner.setup()
+            site = web.TCPSite(runner, "127.0.0.1", port)
+            await site.start()
+            await asyncio.sleep(0.2)
+            await runner.cleanup()
+
+        diagnostic_log = captured.getvalue()
+        self.assertIn(
+            f"[selfcheck] GET /health -> 200; local_port={port}",
+            diagnostic_log,
+        )
+        self.assertTrue(service.closed)
+
+    async def test_failed_diagnostics_task_does_not_skip_login_cleanup(self) -> None:
+        service = FakeLoginService()
+        app = web.Application()
+        app[LOGIN_SERVICE_KEY] = service  # type: ignore[assignment]
+
+        async def fail_diagnostics() -> None:
+            raise RuntimeError("diagnostic failure detail")
+
+        task = asyncio.create_task(fail_diagnostics())
+        await asyncio.sleep(0)
+        app[DIAGNOSTICS_TASK_KEY] = task
+        captured = io.StringIO()
+        with redirect_stdout(captured):
+            await _cleanup_login_service(app)
+
+        self.assertTrue(service.closed)
+        output = captured.getvalue()
+        self.assertIn(
+            "[lifecycle] diagnostics task failed; error=RuntimeError",
+            output,
+        )
+        self.assertNotIn("diagnostic failure detail", output)
 
 
 if __name__ == "__main__":

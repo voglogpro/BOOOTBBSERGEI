@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import sys
+import os
+import platform
+from pathlib import Path
 
 from aiohttp import web
 
@@ -23,17 +26,31 @@ def main() -> None:
         )
         raise
 
+    index_path = Path(__file__).resolve().with_name("index.html")
     _startup_print(
-        f"[startup] configuration OK; listening on "
+        f"[runtime] python={platform.python_version()} pid={os.getpid()} "
+        f"cwd={Path.cwd()} index_bytes={index_path.stat().st_size}"
+    )
+    _startup_print(
+        f"[startup] configuration OK; starting listener on "
         f"{settings.host}:{settings.port}"
     )
-    web.run_app(
-        application,
-        host=settings.host,
-        port=settings.port,
-        print=_startup_print,
-        access_log=None,
-    )
+    try:
+        web.run_app(
+            application,
+            host=settings.host,
+            port=settings.port,
+            print=_startup_print,
+            access_log=None,
+        )
+    except Exception as exc:
+        errno = getattr(exc, "errno", None)
+        errno_suffix = f" errno={errno}" if isinstance(errno, int) else ""
+        _startup_print(
+            f"[runtime] FAILED: {type(exc).__name__}{errno_suffix}"
+        )
+        raise
+    _startup_print("[shutdown] aiohttp server stopped")
 
 
 if __name__ == "__main__":
