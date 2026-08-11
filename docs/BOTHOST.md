@@ -61,28 +61,18 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 должен запускать только `main.py` как Python-процесс. `requirements.txt` нужен
 для установки Python-зависимостей и не является стартовым файлом.
 
-Добавить переменные:
+В стандартной форме создания проекта указать токен Telegram-бота, включить
+домен и выбрать порт `3000`. BotHost сам создаёт `BOT_TOKEN`, `DOMAIN` и
+`PORT`; вручную дублировать их в переменных окружения нельзя.
+
+Добавить только пять пользовательских переменных:
 
 ```dotenv
-APP_ENV=production
-APP_HOST=0.0.0.0
-PORT=3000
-
-DATA_DIR=/app/data
-DATABASE_PATH=/app/data/leads.sqlite3
-ENCRYPTED_SESSION_PATH=/app/data/telegram/reader.session.enc
-
-BOT_TOKEN=<токен нового CRM-бота>
 ADMIN_TELEGRAM_IDS=<ваш Telegram ID; несколько ID через запятую>
 TELEGRAM_API_ID=<api_id с my.telegram.org>
 TELEGRAM_API_HASH=<api_hash с my.telegram.org>
 TELEGRAM_EXPECTED_USER_ID=<точный ID аккаунта Reader>
 SESSION_ENCRYPTION_KEY=<одна сохранённая Fernet-строка>
-
-MINIAPP_INIT_DATA_MAX_AGE_SECONDS=300
-LOGIN_CHALLENGE_TTL_SECONDS=300
-COLLECTOR_ENABLED=false
-READER_CATCHUP_LIMIT=0
 ```
 
 Телефон, код Telegram, пароль 2FA и `SESSION_STRING` в переменные добавлять не
