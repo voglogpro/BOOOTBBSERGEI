@@ -172,6 +172,8 @@ class FakeSourceService:
         actor_telegram_id: int,
     ) -> dict[str, object]:
         self.calls.append(("verify", handle, actor_telegram_id))
+        if self.error:
+            raise self.error
         return {"id": 5, "public_handle": handle, "enabled": False}
 
     async def enable(
@@ -181,6 +183,8 @@ class FakeSourceService:
         actor_telegram_id: int,
     ) -> dict[str, object]:
         self.calls.append(("enable", source_id, actor_telegram_id))
+        if self.error:
+            raise self.error
         return {"id": source_id, "public_handle": "beboss_chat", "enabled": True}
 
     async def disable(
@@ -190,6 +194,8 @@ class FakeSourceService:
         actor_telegram_id: int,
     ) -> dict[str, object]:
         self.calls.append(("disable", source_id, actor_telegram_id))
+        if self.error:
+            raise self.error
         return {"id": source_id, "public_handle": "beboss_chat", "enabled": False}
 
 
@@ -310,6 +316,13 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("exitFullscreen", html)
         self.assertIn("#31d843", html.lower())
         self.assertIn("sources-section", html)
+        self.assertIn("source-item__feedback", html)
+        self.assertIn("Проверяем…", html)
+        self.assertIn("source_not_joined", html)
+        self.assertLess(
+            html.index('id="sources-error-box"'),
+            html.index('id="sources-list"'),
+        )
         self.assertNotIn("SESSION_STRING", html)
         self.assertNotIn("./app.js", html)
         self.assertNotIn("./app.css", html)
@@ -412,6 +425,36 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         payload = await response.json()
         self.assertEqual(payload["error"], "telegram_rate_limited")
         self.assertEqual(response.headers["Retry-After"], "73")
+
+    async def test_source_mutation_diagnostics_hide_identity_and_show_reason(self) -> None:
+        self.service.status_result = LoginStatus(state="authorized")
+        self.sources.error = SourceServiceError(
+            "source_not_joined",
+            "Reader account is not joined.",
+            http_status=409,
+        )
+        captured = io.StringIO()
+        with redirect_stdout(captured):
+            response = await self.client.post(
+                "/api/sources/private_handle_987/verify",
+                headers={"Authorization": signed_header()},
+                json={},
+            )
+        self.assertEqual(response.status, 409)
+        payload = await response.json()
+        self.assertEqual(payload["error"], "source_not_joined")
+        diagnostic_log = captured.getvalue()
+        self.assertIn(
+            "[source] action=verify result=source_not_joined status=409",
+            diagnostic_log,
+        )
+        self.assertIn(
+            "[http] POST /api/sources/{handle}/verify -> 409",
+            diagnostic_log,
+        )
+        self.assertNotIn("private_handle_987", diagnostic_log)
+        self.assertNotIn("actor_telegram_id", diagnostic_log)
+        self.assertNotIn("initData", diagnostic_log)
 
     async def test_diagnostic_log_never_includes_query_string(self) -> None:
         captured = io.StringIO()

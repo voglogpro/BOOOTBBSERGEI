@@ -1138,6 +1138,22 @@ input:disabled {
   background: #2a1518;
 }
 
+.source-action[aria-busy="true"] {
+  opacity: 1;
+}
+
+.source-item__feedback {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 89, 100, 0.24);
+  border-radius: 12px;
+  color: #ffb0b6;
+  background: #2a1518;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
 .empty-state {
   margin-top: 12px;
   padding: 22px 14px;
@@ -1392,6 +1408,11 @@ input:disabled {
         <p><strong>Только новые публичные сообщения.</strong> Reader не вступает в группы автоматически, не читает историю и не собирает участников.</p>
       </div>
 
+      <div class="error-box" id="sources-error-box" role="alert" hidden>
+        <strong>Не удалось выполнить действие</strong>
+        <span id="sources-error-message"></span>
+      </div>
+
       <div class="source-filters" role="group" aria-label="Фильтр источников">
         <button class="filter-button filter-button--active" type="button" data-source-filter="all" aria-pressed="true">Все</button>
         <button class="filter-button" type="button" data-source-filter="A" aria-pressed="false">Приоритет A</button>
@@ -1404,10 +1425,6 @@ input:disabled {
       </div>
       <div class="sources-list" id="sources-list"></div>
       <div class="empty-state" id="sources-empty" hidden>По выбранному фильтру источников пока нет.</div>
-      <div class="error-box" id="sources-error-box" role="alert" hidden>
-        <strong>Не удалось обновить источники</strong>
-        <span id="sources-error-message"></span>
-      </div>
     </section>
 
     <aside class="security-note">
@@ -1509,11 +1526,14 @@ input:disabled {
   const passwordInput = document.getElementById("password-input");
   const passwordToggle = document.getElementById("password-toggle");
   class ApiError extends Error {
-    constructor(message, status = 0, retryAfter = 0) {
+    constructor(message, status = 0, retryAfter = 0, code = "") {
       super(message);
       this.name = "ApiError";
       this.status = status;
       this.retryAfter = retryAfter;
+      this.code = typeof code === "string" && /^[a-z0-9_]{1,64}$/.test(code)
+        ? code
+        : "";
     }
   }
 
@@ -1770,20 +1790,43 @@ input:disabled {
   function clearSourcesError() {
     sourcesErrorMessage.textContent = "";
     sourcesErrorBox.hidden = true;
+    sourcesList.querySelectorAll(".source-item__feedback").forEach((feedback) => {
+      feedback.remove();
+    });
   }
 
-  function showSourcesError(message) {
-    sourcesErrorMessage.textContent = safeText(
+  function showSourcesError(message, sourceCard = null) {
+    const safeMessage = safeText(
       message,
       500,
       "Повторите попытку позже.",
     );
-    sourcesErrorBox.hidden = false;
+    if (sourceCard && sourceCard.isConnected) {
+      let feedback = sourceCard.querySelector(".source-item__feedback");
+      if (!feedback) {
+        feedback = createElement("p", "source-item__feedback");
+        feedback.setAttribute("role", "alert");
+        sourceCard.append(feedback);
+      }
+      feedback.textContent = safeMessage;
+      window.requestAnimationFrame(() => {
+        feedback.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    } else {
+      sourcesErrorMessage.textContent = safeMessage;
+      sourcesErrorBox.hidden = false;
+      window.requestAnimationFrame(() => {
+        sourcesErrorBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+    if (webApp && webApp.HapticFeedback) {
+      webApp.HapticFeedback.notificationOccurred("error");
+    }
   }
 
-  function setSourcesBusy(value) {
+  function setSourcesBusy(value, showGlobalProgress = true) {
     sourcesBusy = Boolean(value);
-    sourcesLoading.hidden = !sourcesBusy;
+    sourcesLoading.hidden = !sourcesBusy || !showGlobalProgress;
     sourcesRefreshButton.disabled = sourcesBusy;
     sourcesList.querySelectorAll("button").forEach((button) => {
       button.disabled = sourcesBusy;
@@ -1799,10 +1842,33 @@ input:disabled {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  async function runSourceAction(candidate, action) {
+  function sourceActionFailureMessage(error) {
+    if (error instanceof ApiError && error.code === "source_not_joined") {
+      return "Reader-аккаунт ещё не вступил в это сообщество. Откройте источник, нажмите «Вступить» или «Подписаться» именно в аккаунте Reader, вернитесь сюда и повторите проверку.";
+    }
+    if (error instanceof ApiError && error.code === "login_in_progress") {
+      return "Сначала завершите или отмените повторный вход в Telegram Reader.";
+    }
+    return error instanceof ApiError
+      ? error.message
+      : "Не удалось изменить источник.";
+  }
+
+  function sourceActionProgressLabel(action) {
+    return {
+      verify: "Проверяем…",
+      enable: "Включаем…",
+      disable: "Выключаем…",
+    }[action] || "Подождите…";
+  }
+
+  async function runSourceAction(candidate, action, sourceCard, actionButton) {
     if (sourcesBusy) return;
-    setSourcesBusy(true);
+    const originalButtonText = actionButton.textContent;
+    setSourcesBusy(true, false);
     clearSourcesError();
+    actionButton.textContent = sourceActionProgressLabel(action);
+    actionButton.setAttribute("aria-busy", "true");
     try {
       let path;
       if (action === "verify") {
@@ -1827,13 +1893,13 @@ input:disabled {
       if (error instanceof ApiError && error.status === 401) {
         handleError(error);
       } else {
-        showSourcesError(
-          error instanceof ApiError
-            ? error.message
-            : "Не удалось изменить источник.",
-        );
+        showSourcesError(sourceActionFailureMessage(error), sourceCard);
       }
     } finally {
+      if (actionButton.isConnected) {
+        actionButton.textContent = originalButtonText;
+        actionButton.removeAttribute("aria-busy");
+      }
       setSourcesBusy(false);
     }
   }
@@ -1892,15 +1958,15 @@ input:disabled {
       if (candidate.state === "enabled") {
         actionButton.className = "source-action source-action--danger";
         actionButton.textContent = "Выключить";
-        actionButton.addEventListener("click", () => runSourceAction(candidate, "disable"));
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "disable", card, actionButton));
       } else if (candidate.state === "verified_disabled") {
         actionButton.className = "source-action source-action--primary";
         actionButton.textContent = "Включить";
-        actionButton.addEventListener("click", () => runSourceAction(candidate, "enable"));
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "enable", card, actionButton));
       } else {
         actionButton.className = "source-action source-action--primary";
         actionButton.textContent = "Проверить";
-        actionButton.addEventListener("click", () => runSourceAction(candidate, "verify"));
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "verify", card, actionButton));
       }
       actions.append(actionButton);
       card.append(actions);
@@ -1990,7 +2056,10 @@ input:disabled {
       const retryAfter = payload && Number.isFinite(Number(payload.retry_after))
         ? Math.max(0, Math.floor(Number(payload.retry_after)))
         : 0;
-      throw new ApiError(safeMessage, response.status, retryAfter);
+      const errorCode = payload && typeof payload.error === "string"
+        ? payload.error.slice(0, 64)
+        : "";
+      throw new ApiError(safeMessage, response.status, retryAfter, errorCode);
     }
 
     return typeof normalizer === "function" ? normalizer(payload) : payload;

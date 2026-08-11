@@ -50,6 +50,16 @@ SAFE_DIAGNOSTIC_PATHS = frozenset(
         "/api/reader/status",
     }
 )
+SAFE_DYNAMIC_DIAGNOSTIC_ROUTES = {
+    "source-verify": "/api/sources/{handle}/verify",
+    "source-enable": "/api/sources/{source_id}/enable",
+    "source-disable": "/api/sources/{source_id}/disable",
+}
+SAFE_SOURCE_ACTIONS = {
+    "source-verify": "verify",
+    "source-enable": "enable",
+    "source-disable": "disable",
+}
 
 
 class ApiRequestError(ValueError):
@@ -63,7 +73,15 @@ def _diagnostic_print(message: str) -> None:
 def _safe_request_path(request: web.Request) -> str:
     if request.path in SAFE_DIAGNOSTIC_PATHS:
         return request.path
+    route_name = getattr(request.match_info.route, "name", None)
+    if route_name in SAFE_DYNAMIC_DIAGNOSTIC_ROUTES:
+        return SAFE_DYNAMIC_DIAGNOSTIC_ROUTES[route_name]
     return "<unmatched>"
+
+
+def _safe_source_action(request: web.Request) -> str | None:
+    route_name = getattr(request.match_info.route, "name", None)
+    return SAFE_SOURCE_ACTIONS.get(route_name)
 
 
 def _json_response(
@@ -167,6 +185,22 @@ async def api_error_middleware(
             headers=headers,
         )
     except SourceServiceError as exc:
+        action = _safe_source_action(request)
+        safe_code = (
+            exc.code
+            if isinstance(exc.code, str)
+            and 1 <= len(exc.code) <= 64
+            and all(
+                character in "abcdefghijklmnopqrstuvwxyz0123456789_"
+                for character in exc.code
+            )
+            else "unknown_error"
+        )
+        if action is not None:
+            _diagnostic_print(
+                f"[source] action={action} result={safe_code} "
+                f"status={exc.http_status}"
+            )
         payload = {
             "error": exc.code,
             "message": exc.public_message,
@@ -615,9 +649,21 @@ def create_app(
     if source_service is not None:
         app.router.add_get("/api/sources/catalog", sources_catalog)
         app.router.add_get("/api/sources", sources_list)
-        app.router.add_post("/api/sources/{handle}/verify", source_verify)
-        app.router.add_post("/api/sources/{source_id}/enable", source_enable)
-        app.router.add_post("/api/sources/{source_id}/disable", source_disable)
+        app.router.add_post(
+            "/api/sources/{handle}/verify",
+            source_verify,
+            name="source-verify",
+        )
+        app.router.add_post(
+            "/api/sources/{source_id}/enable",
+            source_enable,
+            name="source-enable",
+        )
+        app.router.add_post(
+            "/api/sources/{source_id}/disable",
+            source_disable,
+            name="source-disable",
+        )
     if live_reader is not None:
         app.router.add_get("/api/reader/status", reader_status)
         app.on_startup.append(_start_live_reader)
