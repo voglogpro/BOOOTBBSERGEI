@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import aiosqlite
@@ -13,7 +14,7 @@ from app.rules import (
 )
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 SCHEMA_SQL = """
@@ -76,6 +77,68 @@ CREATE TABLE IF NOT EXISTS source_verifications (
     report_schema_version INTEGER NOT NULL CHECK (report_schema_version > 0),
     verified_at TEXT NOT NULL,
     created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS source_audit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER REFERENCES lead_sources(id) ON DELETE SET NULL,
+    telegram_chat_id INTEGER,
+    public_handle TEXT COLLATE NOCASE,
+    event_type TEXT NOT NULL
+        CHECK (event_type IN (
+            'verified', 'enabled', 'disabled', 'verification_revoked',
+            'reader_degraded'
+        )),
+    actor_kind TEXT NOT NULL DEFAULT 'system'
+        CHECK (actor_kind IN ('system', 'admin', 'reader')),
+    actor_telegram_id INTEGER,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    CHECK (
+        (actor_kind = 'admin' AND actor_telegram_id IS NOT NULL)
+        OR actor_kind != 'admin'
+    )
+);
+
+CREATE TABLE IF NOT EXISTS reader_inbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL UNIQUE,
+    source_id INTEGER NOT NULL REFERENCES lead_sources(id) ON DELETE RESTRICT,
+    telegram_chat_id INTEGER NOT NULL CHECK (telegram_chat_id < -1000000000000),
+    telegram_message_id INTEGER NOT NULL CHECK (telegram_message_id > 0),
+    event_type TEXT NOT NULL CHECK (event_type IN ('new', 'edited')),
+    message_text TEXT CHECK (
+        message_text IS NULL OR length(message_text) BETWEEN 1 AND 8192
+    ),
+    published_at TEXT NOT NULL,
+    edited_at TEXT,
+    payload_hash TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'processing', 'done', 'dead')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    next_attempt_at TEXT,
+    last_error_code TEXT,
+    last_error_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    CHECK (status IN ('done', 'dead') OR message_text IS NOT NULL)
+);
+
+CREATE TABLE IF NOT EXISTS reader_runtime (
+    singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+    account_user_id INTEGER,
+    state TEXT NOT NULL
+        CHECK (state IN ('stopped', 'starting', 'paused', 'running', 'degraded')),
+    active_source_count INTEGER NOT NULL DEFAULT 0
+        CHECK (active_source_count >= 0),
+    pending_event_count INTEGER NOT NULL DEFAULT 0
+        CHECK (pending_event_count >= 0),
+    connected_at TEXT,
+    heartbeat_at TEXT,
+    last_error_code TEXT,
+    last_error_at TEXT,
+    updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS message_observations (
@@ -164,6 +227,15 @@ CREATE TABLE IF NOT EXISTS city_score_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_sources_enabled
     ON lead_sources(enabled, id);
+CREATE INDEX IF NOT EXISTS idx_source_audit_date
+    ON source_audit_events(source_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reader_inbox_delivery
+    ON reader_inbox(status, next_attempt_at, id);
+CREATE INDEX IF NOT EXISTS idx_reader_inbox_source
+    ON reader_inbox(source_id, status, id);
+CREATE INDEX IF NOT EXISTS idx_reader_inbox_retention
+    ON reader_inbox(status, completed_at)
+    WHERE status IN ('done', 'dead');
 CREATE INDEX IF NOT EXISTS idx_observations_decision_date
     ON message_observations(decision, published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_observations_purge
@@ -186,22 +258,78 @@ def utc_now() -> str:
 
 async def connect_db(settings: Settings) -> aiosqlite.Connection:
     settings.ensure_runtime_directories()
-    db = await aiosqlite.connect(settings.database_path)
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA foreign_keys = ON")
-    await db.execute("PRAGMA journal_mode = WAL")
-    await db.execute("PRAGMA synchronous = NORMAL")
-    await db.execute("PRAGMA busy_timeout = 5000")
-    return db
+    db = aiosqlite.connect(settings.database_path)
+    # ``aiosqlite.Connection.__await__`` starts a worker thread.  If the
+    # caller is cancelled while that thread is still opening SQLite, directly
+    # cancelling the await can return before ``_connection`` is assigned; at
+    # that point ``close()`` is a no-op and the worker may later leave the
+    # database file open.  Keep the connect operation alive under a shield,
+    # then wait for it before closing on every failure/cancellation path.
+    connect_task = asyncio.ensure_future(db)
+    try:
+        await asyncio.shield(connect_task)
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute("PRAGMA journal_mode = WAL")
+        await db.execute("PRAGMA synchronous = NORMAL")
+        await db.execute("PRAGMA busy_timeout = 5000")
+        return db
+    except BaseException:
+        try:
+            await asyncio.shield(connect_task)
+        except BaseException:
+            # A failed connector already stops its own worker thread.
+            pass
+        try:
+            await asyncio.shield(db.close())
+        except BaseException:
+            pass
+        raise
 
 
 async def init_db(settings: Settings) -> None:
     now = utc_now()
     db = await connect_db(settings)
     try:
-        await db.executescript(SCHEMA_SQL)
-        await db.execute(
+        cursor = await db.execute(
             """
+            SELECT 1 FROM sqlite_master
+            WHERE type = 'table' AND name = 'app_meta'
+            """
+        )
+        meta_exists = await cursor.fetchone() is not None
+        existing_version = 0
+        if meta_exists:
+            cursor = await db.execute(
+                "SELECT value FROM app_meta WHERE key = 'schema_version'"
+            )
+            version_row = await cursor.fetchone()
+        else:
+            version_row = None
+        if version_row is not None:
+            try:
+                existing_version = int(version_row["value"])
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("database schema_version is invalid") from exc
+        if existing_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                "database schema is newer than this application: "
+                f"{existing_version} > {SCHEMA_VERSION}"
+            )
+
+        # Version 3 is an additive migration: the schema script creates the
+        # durable reader and source-audit tables without rewriting lead data.
+        await db.executescript(SCHEMA_SQL)
+        freshness_clause = ""
+        if existing_version < 3:
+            # Older code could import a stale ReadySourceVerification object
+            # directly. Fail closed once while crossing the v3 boundary.
+            freshness_clause = """
+                    AND datetime(v.verified_at) >= datetime('now', '-24 hours')
+                    AND datetime(v.verified_at) <= datetime('now', '+5 minutes')
+            """
+        await db.execute(
+            f"""
             UPDATE lead_sources
             SET enabled = 0, updated_at = ?
             WHERE enabled = 1
@@ -210,7 +338,19 @@ async def init_db(settings: Settings) -> None:
                   WHERE v.source_id = lead_sources.id
                     AND v.verified_chat_id = lead_sources.telegram_chat_id
                     AND v.verified_handle = lead_sources.public_handle COLLATE NOCASE
+                    AND v.report_schema_version = 1
+                    {freshness_clause}
               )
+            """,
+            (now,),
+        )
+        await db.execute(
+            """
+            UPDATE source_checkpoints
+            SET reader_status = 'paused', updated_at = ?
+            WHERE source_id IN (
+                SELECT id FROM lead_sources WHERE enabled = 0
+            )
             """,
             (now,),
         )

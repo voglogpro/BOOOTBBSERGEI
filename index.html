@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <meta name="theme-color" content="#111827">
-  <title>bb.bike — Telegram Reader</title>
+  <meta name="theme-color" content="#080c09">
+  <title>bb.bike — Лиды франшизы</title>
   <style nonce="__CSP_NONCE__">
 :root {
   color-scheme: light dark;
@@ -479,6 +479,710 @@ body[data-busy="true"] .icon-button {
   }
 }
 
+/* bb.bike CRM v2 */
+:root {
+  color-scheme: dark;
+  --bg: #080c09;
+  --surface: #0f1512;
+  --tile: #171f1a;
+  --surface-2: #1e2721;
+  --text: #f2f7f3;
+  --muted: #8b9890;
+  --detail: #cbd6cf;
+  --accent: #31d843;
+  --accent-readable: #5fe58c;
+  --accent-text: #061208;
+  --link: #5fe58c;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.17);
+  --success: #31d843;
+  --warning: #ffc75c;
+  --danger: #ff5964;
+  --info: #72aaff;
+  --shadow: none;
+}
+
+html {
+  background: #080c09;
+}
+
+body {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  color: var(--text);
+  background:
+    radial-gradient(130% 58% at 50% -14%, rgba(49, 216, 67, 0.1), transparent 62%),
+    #080c09;
+  font-family: Manrope, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.shell {
+  width: min(100%, 520px);
+  padding-top: max(14px, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top)));
+  padding-right: max(16px, var(--tg-content-safe-area-inset-right, env(safe-area-inset-right)));
+  padding-bottom: max(30px, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  padding-left: max(16px, var(--tg-content-safe-area-inset-left, env(safe-area-inset-left)));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+.brand__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.brand__mark {
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: #061108;
+  background: #31d843;
+  box-shadow: 0 6px 16px rgba(49, 216, 67, 0.2);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.brand__identity > div:last-child {
+  min-width: 0;
+}
+
+.brand__mark::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    122deg,
+    rgba(7, 27, 16, 0.16) 0 3px,
+    transparent 3px 9px
+  );
+  content: "";
+}
+
+.brand h1 {
+  overflow: hidden;
+  margin: 0;
+  font-size: clamp(18px, 5vw, 22px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eyebrow,
+.step {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.fullscreen-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  color: var(--detail);
+  background: var(--tile);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.fullscreen-button[aria-pressed="true"] {
+  border-color: rgba(49, 216, 67, 0.28);
+  color: var(--accent-readable);
+  background: #102b18;
+}
+
+.fullscreen-icon {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.status-card,
+.auth-card,
+.sources-card,
+.security-note {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.status-card {
+  padding: 16px;
+}
+
+.status-card[data-tone="success"] {
+  box-shadow: inset 3px 0 0 var(--success);
+}
+
+.status-card[data-tone="warning"] {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.status-card[data-tone="danger"] {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.status-card__head,
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-card h2,
+.section-heading h2 {
+  overflow: visible;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.22;
+  white-space: normal;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  box-shadow: 0 0 0 4px rgba(139, 152, 144, 0.12);
+}
+
+.status-dot--success {
+  box-shadow: 0 0 0 4px rgba(49, 216, 67, 0.2);
+}
+
+.status-dot--warning {
+  box-shadow: 0 0 0 4px rgba(255, 199, 92, 0.16);
+}
+
+.status-dot--danger {
+  box-shadow: 0 0 0 4px rgba(255, 89, 100, 0.16);
+}
+
+.icon-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  color: var(--detail);
+  background: var(--tile);
+}
+
+.icon-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.status-message {
+  min-height: 0;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status-grid {
+  gap: 8px;
+}
+
+.status-metric,
+.source-summary__item {
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  border-radius: 14px;
+  background: var(--tile);
+}
+
+.status-metric span,
+.source-summary__item span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status-metric strong,
+.source-summary__item strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.auth-card,
+.sources-card {
+  margin-top: 11px;
+  padding: 16px;
+}
+
+.panel {
+  animation-duration: 160ms;
+}
+
+.panel--center {
+  padding: 8px 0;
+}
+
+.panel h2 {
+  font-size: clamp(21px, 6vw, 27px);
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+}
+
+.panel__description,
+.panel--center > p {
+  margin: 9px auto 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+form {
+  gap: 11px;
+  margin-top: 20px;
+}
+
+label {
+  color: var(--detail);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  color: var(--text);
+  background: var(--tile);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+input::placeholder {
+  color: #7a877f;
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(49, 216, 67, 0.16);
+}
+
+.primary-button,
+.secondary-button,
+.text-button,
+.source-action,
+.filter-button {
+  min-height: 48px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.primary-button {
+  min-height: 52px;
+  color: var(--accent-text);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.secondary-button {
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--tile);
+}
+
+.text-button,
+.password-toggle {
+  color: var(--accent-readable);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+button:disabled,
+input:disabled {
+  opacity: 0.42;
+}
+
+.result-icon {
+  border-radius: 17px;
+}
+
+.result-icon--success {
+  color: var(--accent-readable);
+  background: #102b18;
+}
+
+.result-icon--warning {
+  color: var(--warning);
+  background: #2a2211;
+}
+
+.error-box {
+  border-color: rgba(255, 89, 100, 0.24);
+  border-radius: 14px;
+  color: #ffb0b6;
+  background: #2a1518;
+}
+
+.security-note {
+  margin-top: 11px;
+  padding: 14px;
+  border-color: rgba(49, 216, 67, 0.22);
+  border-radius: 15px;
+  background: #11261a;
+}
+
+.security-note p {
+  color: #c6f5d7;
+}
+
+.security-note strong {
+  color: #effff4;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.source-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.source-summary__item span,
+.source-summary__item strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-summary__item span {
+  margin-bottom: 4px;
+}
+
+.reader-runtime {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.reader-runtime__dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.reader-runtime strong,
+.reader-runtime span:not(.reader-runtime__dot) {
+  display: block;
+}
+
+.reader-runtime strong {
+  margin-bottom: 3px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.reader-runtime span:not(.reader-runtime__dot) {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.reader-runtime[data-state="running"] {
+  border-color: rgba(49, 216, 67, 0.2);
+  background: #102b18;
+}
+
+.reader-runtime[data-state="running"] .reader-runtime__dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(49, 216, 67, 0.14);
+}
+
+.reader-runtime[data-state="degraded"] {
+  border-color: rgba(255, 89, 100, 0.2);
+  background: #2a1518;
+}
+
+.reader-runtime[data-state="degraded"] .reader-runtime__dot {
+  background: var(--danger);
+}
+
+.reader-runtime[data-state="starting"] .reader-runtime__dot {
+  background: var(--info);
+}
+
+.source-policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(49, 216, 67, 0.17);
+  border-radius: 14px;
+  color: #c6f5d7;
+  background: #102b18;
+}
+
+.source-policy__icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent-text);
+  background: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.source-policy p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.source-filters {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: #0b100d;
+  scrollbar-width: none;
+}
+
+.source-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-button {
+  flex: 1 0 auto;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.filter-button--active {
+  color: var(--accent-readable);
+  background: #10351e;
+}
+
+.sources-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sources-loading .spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.sources-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.source-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--tile);
+}
+
+.source-item--enabled {
+  border-color: rgba(49, 216, 67, 0.22);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.source-item__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.source-item__title {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.source-item__handle,
+.source-item__reason {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.source-item__badges {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.source-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--detail);
+  background: var(--surface-2);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.source-badge--enabled,
+.source-badge--ready {
+  color: var(--accent-readable);
+  background: #102b18;
+}
+
+.source-badge--warning {
+  color: var(--warning);
+  background: #2a2211;
+}
+
+.source-item__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.source-action {
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.source-action--primary {
+  border-color: rgba(49, 216, 67, 0.24);
+  color: var(--accent-text);
+  background: var(--accent);
+}
+
+.source-action--danger {
+  border-color: rgba(255, 89, 100, 0.2);
+  color: #ff7a82;
+  background: #2a1518;
+}
+
+.empty-state {
+  margin-top: 12px;
+  padding: 22px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 15px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+}
+
+@media (max-width: 340px) {
+  .shell {
+    padding-right: max(12px, var(--tg-content-safe-area-inset-right, env(safe-area-inset-right)));
+    padding-left: max(12px, var(--tg-content-safe-area-inset-left, env(safe-area-inset-left)));
+  }
+
+  .fullscreen-button {
+    width: 42px;
+    padding: 0;
+  }
+
+  .fullscreen-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .status-card,
+  .auth-card,
+  .sources-card {
+    padding: 14px;
+  }
+
+  .source-item__head {
+    display: block;
+  }
+
+  .source-item__badges {
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -494,14 +1198,25 @@ body[data-busy="true"] .icon-button {
 <body>
   <main class="shell" id="app" aria-busy="true">
     <header class="brand">
-      <div class="brand__mark" aria-hidden="true">bb</div>
-      <div>
-        <p class="eyebrow">bb.bike leads</p>
-        <h1>Telegram Reader</h1>
+      <div class="brand__identity">
+        <div class="brand__mark" aria-hidden="true">bb</div>
+        <div>
+          <p class="eyebrow">bb.bike leads</p>
+          <h1>Лиды франшизы</h1>
+        </div>
       </div>
+      <button class="fullscreen-button" id="fullscreen-button" type="button" aria-pressed="false" title="Открыть на весь экран">
+        <svg class="fullscreen-icon fullscreen-icon--enter" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path>
+        </svg>
+        <svg class="fullscreen-icon fullscreen-icon--exit" viewBox="0 0 24 24" aria-hidden="true" hidden>
+          <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"></path>
+        </svg>
+        <span id="fullscreen-label">На весь экран</span>
+      </button>
     </header>
 
-    <section class="status-card" aria-labelledby="status-title">
+    <section class="status-card" id="status-card" data-tone="loading" aria-labelledby="status-title">
       <div class="status-card__head">
         <div class="status-heading">
           <span class="status-dot status-dot--loading" id="status-dot" aria-hidden="true"></span>
@@ -511,7 +1226,7 @@ body[data-busy="true"] .icon-button {
           </div>
         </div>
         <button class="icon-button" id="refresh-button" type="button" aria-label="Обновить состояние" title="Обновить">
-          <span aria-hidden="true">↻</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"></path></svg>
         </button>
       </div>
 
@@ -612,8 +1327,8 @@ body[data-busy="true"] .icon-button {
 
       <div class="panel panel--center" id="success-panel" hidden>
         <div class="result-icon result-icon--success" aria-hidden="true">✓</div>
-        <h2>Сессия сохранена</h2>
-        <p>Аккаунт проверен, а сессия зашифрована на BotHost. Сам сборщик сообщений включается отдельным этапом.</p>
+        <h2>Reader подключён</h2>
+        <p>Аккаунт проверен, сессия зашифрована. Ниже можно выбрать и включить публичные сообщества.</p>
         <button class="secondary-button" id="reauthorize-button" type="button">Переподключить аккаунт</button>
         <button class="text-button" id="success-refresh-button" type="button">Обновить состояние</button>
       </div>
@@ -638,6 +1353,63 @@ body[data-busy="true"] .icon-button {
       </div>
     </section>
 
+    <section class="sources-card" id="sources-section" aria-labelledby="sources-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Публичные сообщества</p>
+          <h2 id="sources-title">Источники мониторинга</h2>
+        </div>
+        <button class="icon-button" id="sources-refresh-button" type="button" aria-label="Обновить источники" title="Обновить источники">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"></path></svg>
+        </button>
+      </div>
+
+      <div class="source-summary" aria-label="Сводка источников">
+        <div class="source-summary__item">
+          <span>В каталоге</span>
+          <strong id="sources-total">—</strong>
+        </div>
+        <div class="source-summary__item">
+          <span>Проверено</span>
+          <strong id="sources-verified">—</strong>
+        </div>
+        <div class="source-summary__item">
+          <span>Включено</span>
+          <strong id="sources-enabled">—</strong>
+        </div>
+      </div>
+
+      <div class="reader-runtime" id="reader-runtime" data-state="stopped" role="status">
+        <span class="reader-runtime__dot" aria-hidden="true"></span>
+        <div>
+          <strong id="reader-runtime-title">Reader запускается</strong>
+          <span id="reader-runtime-message">Проверяем состояние безопасного сборщика.</span>
+        </div>
+      </div>
+
+      <div class="source-policy">
+        <span class="source-policy__icon" aria-hidden="true">✓</span>
+        <p><strong>Только новые публичные сообщения.</strong> Reader не вступает в группы автоматически, не читает историю и не собирает участников.</p>
+      </div>
+
+      <div class="source-filters" role="group" aria-label="Фильтр источников">
+        <button class="filter-button filter-button--active" type="button" data-source-filter="all" aria-pressed="true">Все</button>
+        <button class="filter-button" type="button" data-source-filter="A" aria-pressed="false">Приоритет A</button>
+        <button class="filter-button" type="button" data-source-filter="enabled" aria-pressed="false">Включённые</button>
+      </div>
+
+      <div class="sources-loading" id="sources-loading" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Загружаем каталог…</span>
+      </div>
+      <div class="sources-list" id="sources-list"></div>
+      <div class="empty-state" id="sources-empty" hidden>По выбранному фильтру источников пока нет.</div>
+      <div class="error-box" id="sources-error-box" role="alert" hidden>
+        <strong>Не удалось обновить источники</strong>
+        <span id="sources-error-message"></span>
+      </div>
+    </section>
+
     <aside class="security-note">
       <span class="security-note__icon" aria-hidden="true">◇</span>
       <p><strong>Безопасный вход.</strong> Mini App не пишет телефон, код или пароль в cookies и хранилище браузера. Доступ разрешён только администраторам.</p>
@@ -655,6 +1427,11 @@ body[data-busy="true"] .icon-button {
     code: "/api/telegram/auth/code",
     password: "/api/telegram/auth/password",
     cancel: "/api/telegram/auth/cancel",
+    sourcesCatalog: "/api/sources/catalog",
+    sourceVerify: (handle) => `/api/sources/${encodeURIComponent(handle)}/verify`,
+    sourceEnable: (sourceId) => `/api/sources/${sourceId}/enable`,
+    sourceDisable: (sourceId) => `/api/sources/${sourceId}/disable`,
+    readerStatus: "/api/reader/status",
   });
 
   const KNOWN_STATES = new Set([
@@ -675,8 +1452,13 @@ body[data-busy="true"] .icon-button {
   let replaceExisting = false;
   let busy = false;
   let lockTimer = null;
+  let sourceCatalog = [];
+  let readerRuntime = null;
+  let sourceFilter = "all";
+  let sourcesBusy = false;
 
   const app = document.getElementById("app");
+  const statusCard = document.getElementById("status-card");
   const statusDot = document.getElementById("status-dot");
   const statusTitle = document.getElementById("status-title");
   const statusMessage = document.getElementById("status-message");
@@ -690,6 +1472,24 @@ body[data-busy="true"] .icon-button {
   const lockCountdown = document.getElementById("lock-countdown");
   const errorBox = document.getElementById("error-box");
   const errorMessage = document.getElementById("error-message");
+  const fullscreenButton = document.getElementById("fullscreen-button");
+  const fullscreenLabel = document.getElementById("fullscreen-label");
+  const fullscreenEnterIcon = fullscreenButton.querySelector(".fullscreen-icon--enter");
+  const fullscreenExitIcon = fullscreenButton.querySelector(".fullscreen-icon--exit");
+  const sourcesSection = document.getElementById("sources-section");
+  const sourcesRefreshButton = document.getElementById("sources-refresh-button");
+  const sourcesLoading = document.getElementById("sources-loading");
+  const sourcesList = document.getElementById("sources-list");
+  const sourcesEmpty = document.getElementById("sources-empty");
+  const sourcesErrorBox = document.getElementById("sources-error-box");
+  const sourcesErrorMessage = document.getElementById("sources-error-message");
+  const sourcesTotal = document.getElementById("sources-total");
+  const sourcesVerified = document.getElementById("sources-verified");
+  const sourcesEnabled = document.getElementById("sources-enabled");
+  const readerRuntimeBox = document.getElementById("reader-runtime");
+  const readerRuntimeTitle = document.getElementById("reader-runtime-title");
+  const readerRuntimeMessage = document.getElementById("reader-runtime-message");
+  const sourceFilterButtons = Array.from(document.querySelectorAll("[data-source-filter]"));
 
   const panels = {
     loading: document.getElementById("loading-panel"),
@@ -708,8 +1508,6 @@ body[data-busy="true"] .icon-button {
   const codeInput = document.getElementById("code-input");
   const passwordInput = document.getElementById("password-input");
   const passwordToggle = document.getElementById("password-toggle");
-  const controls = Array.from(document.querySelectorAll("button, input"));
-
   class ApiError extends Error {
     constructor(message, status = 0, retryAfter = 0) {
       super(message);
@@ -723,7 +1521,7 @@ body[data-busy="true"] .icon-button {
     busy = Boolean(value);
     app.setAttribute("aria-busy", String(busy));
     document.body.dataset.busy = String(busy);
-    controls.forEach((control) => {
+    document.querySelectorAll(".status-card button, .auth-card button, .auth-card input").forEach((control) => {
       control.disabled = busy;
     });
   }
@@ -739,12 +1537,70 @@ body[data-busy="true"] .icon-button {
     errorBox.hidden = true;
   }
 
+  function telegramFullscreenSupported() {
+    return Boolean(
+      webApp
+      && typeof webApp.requestFullscreen === "function"
+      && typeof webApp.exitFullscreen === "function"
+      && (
+        typeof webApp.isVersionAtLeast !== "function"
+        || webApp.isVersionAtLeast("8.0")
+      )
+    );
+  }
+
+  function fullscreenActive() {
+    if (telegramFullscreenSupported()) {
+      return Boolean(webApp.isFullscreen);
+    }
+    return Boolean(document.fullscreenElement);
+  }
+
+  function syncFullscreenState() {
+    const active = fullscreenActive();
+    document.body.dataset.fullscreen = String(active);
+    fullscreenButton.setAttribute("aria-pressed", String(active));
+    fullscreenButton.title = active
+      ? "Скрыть полноэкранный режим"
+      : "Открыть на весь экран";
+    fullscreenLabel.textContent = active ? "Скрыть экран" : "На весь экран";
+    fullscreenEnterIcon.hidden = active;
+    fullscreenExitIcon.hidden = !active;
+  }
+
+  async function toggleFullscreen() {
+    clearError();
+    try {
+      if (telegramFullscreenSupported()) {
+        if (webApp.isFullscreen) {
+          webApp.exitFullscreen();
+        } else {
+          webApp.requestFullscreen();
+        }
+        return;
+      }
+
+      if (document.fullscreenElement && typeof document.exitFullscreen === "function") {
+        await document.exitFullscreen();
+      } else if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        showError("Полноэкранный режим не поддерживается в этой версии приложения.");
+      }
+    } catch (_error) {
+      showError("Не удалось изменить полноэкранный режим на этом устройстве.");
+    } finally {
+      syncFullscreenState();
+    }
+  }
+
   function showError(message) {
     errorMessage.textContent = message;
     errorBox.hidden = false;
   }
 
   function setStatus({ tone, title, message, reader, session }) {
+    statusCard.dataset.tone = tone;
     statusDot.className = `status-dot status-dot--${tone}`;
     statusTitle.textContent = title;
     statusMessage.textContent = message;
@@ -770,7 +1626,323 @@ body[data-busy="true"] .icon-button {
     };
   }
 
-  async function apiRequest(path, { method = "GET", body } = {}) {
+  function safeText(value, maxLength, fallback = "") {
+    return typeof value === "string" && value.trim()
+      ? value.trim().slice(0, maxLength)
+      : fallback;
+  }
+
+  function normalizeCatalogResponse(value) {
+    if (!value || typeof value !== "object" || !Array.isArray(value.candidates)) {
+      throw new ApiError("Сервер вернул некорректный каталог источников.");
+    }
+    if (value.candidates.length > 100) {
+      throw new ApiError("Каталог источников превышает безопасный размер.");
+    }
+
+    const allowedStates = new Set([
+      "candidate",
+      "unverified",
+      "verified_disabled",
+      "enabled",
+    ]);
+    const candidates = value.candidates.map((item) => {
+      if (!item || typeof item !== "object") {
+        throw new ApiError("Каталог содержит некорректный источник.");
+      }
+      const handle = safeText(item.handle, 32);
+      if (!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(handle)) {
+        throw new ApiError("Каталог содержит некорректный Telegram username.");
+      }
+      const state = allowedStates.has(item.state) ? item.state : "candidate";
+      const sourceId = Number.isInteger(item.source_id) && item.source_id > 0
+        ? item.source_id
+        : null;
+      if (["verified_disabled", "enabled"].includes(state) && sourceId === null) {
+        throw new ApiError("Проверенный источник не содержит идентификатор.");
+      }
+      return {
+        handle,
+        title: safeText(item.title, 160, `@${handle}`),
+        priority: item.priority === "A" ? "A" : "B",
+        category: safeText(item.category, 40),
+        geo: safeText(item.geo, 40, "federal"),
+        noiseRisk: ["low", "medium", "high"].includes(item.noise_risk)
+          ? item.noise_risk
+          : "medium",
+        reason: safeText(item.reason, 500),
+        state,
+        sourceId,
+        readerStatus: safeText(item.reader_status, 24),
+      };
+    });
+    return { candidates };
+  }
+
+  function normalizeReaderStatus(value) {
+    const allowedStates = new Set(["stopped", "starting", "paused", "running", "degraded"]);
+    if (!value || typeof value !== "object" || !allowedStates.has(value.state)) {
+      throw new ApiError("Сервер вернул некорректное состояние Reader.");
+    }
+    return {
+      state: value.state,
+      activeSourceCount: Number.isInteger(value.active_source_count)
+        ? Math.max(0, value.active_source_count)
+        : 0,
+      pendingEventCount: Number.isInteger(value.pending_event_count)
+        ? Math.max(0, value.pending_event_count)
+        : 0,
+      lastErrorCode: safeText(value.last_error_code, 64),
+    };
+  }
+
+  function renderReaderRuntime() {
+    const runtime = readerRuntime || {
+      state: "stopped",
+      activeSourceCount: 0,
+      pendingEventCount: 0,
+      lastErrorCode: "",
+    };
+    readerRuntimeBox.dataset.state = runtime.state;
+    if (runtime.state === "running") {
+      readerRuntimeTitle.textContent = "Reader работает";
+      readerRuntimeMessage.textContent = runtime.pendingEventCount > 0
+        ? `Активных источников: ${runtime.activeSourceCount}. В очереди: ${runtime.pendingEventCount}.`
+        : `Читаем только новые сообщения из ${runtime.activeSourceCount} источников.`;
+      readerStatus.textContent = "Работает";
+      return;
+    }
+    if (runtime.state === "degraded") {
+      readerRuntimeTitle.textContent = "Reader остановлен защитой";
+      readerRuntimeMessage.textContent = "Обновите состояние. Если ошибка повторится, проверьте логи BotHost.";
+      readerStatus.textContent = "Нужна проверка";
+      return;
+    }
+    if (runtime.state === "starting") {
+      readerRuntimeTitle.textContent = "Reader запускается";
+      readerRuntimeMessage.textContent = "Проверяем сессию и список разрешённых источников.";
+      readerStatus.textContent = "Запускается";
+      return;
+    }
+    if (runtime.lastErrorCode === "collector_disabled") {
+      readerRuntimeTitle.textContent = "Сбор новых сообщений выключен";
+      readerRuntimeMessage.textContent = "После проверки источника задайте COLLECTOR_ENABLED=true в BotHost и выполните новый деплой.";
+      readerStatus.textContent = "Сбор выключен";
+      return;
+    }
+    if (runtime.state === "paused") {
+      readerRuntimeTitle.textContent = "Reader готов к источникам";
+      readerRuntimeMessage.textContent = "Вручную вступите в сообщество, проверьте его и нажмите «Включить».";
+      readerStatus.textContent = "Ожидает источники";
+      return;
+    }
+    readerRuntimeTitle.textContent = "Reader остановлен";
+    readerRuntimeMessage.textContent = "Обновите состояние или перезапустите приложение на BotHost.";
+    readerStatus.textContent = "Остановлен";
+  }
+
+  function sourceStateLabel(state) {
+    return {
+      candidate: "Кандидат",
+      unverified: "Не проверен",
+      verified_disabled: "Готов",
+      enabled: "Включён",
+    }[state] || "Кандидат";
+  }
+
+  function sourceGeoLabel(geo) {
+    return {
+      federal: "Россия",
+      moscow: "Москва",
+      "saint-petersburg": "Санкт-Петербург",
+      kazan: "Казань",
+      krasnodar: "Краснодар",
+    }[geo] || geo.replace(/-/g, " ");
+  }
+
+  function createElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+
+  function clearSourcesError() {
+    sourcesErrorMessage.textContent = "";
+    sourcesErrorBox.hidden = true;
+  }
+
+  function showSourcesError(message) {
+    sourcesErrorMessage.textContent = safeText(
+      message,
+      500,
+      "Повторите попытку позже.",
+    );
+    sourcesErrorBox.hidden = false;
+  }
+
+  function setSourcesBusy(value) {
+    sourcesBusy = Boolean(value);
+    sourcesLoading.hidden = !sourcesBusy;
+    sourcesRefreshButton.disabled = sourcesBusy;
+    sourcesList.querySelectorAll("button").forEach((button) => {
+      button.disabled = sourcesBusy;
+    });
+  }
+
+  function openTelegramSource(handle) {
+    const url = `https://t.me/${handle}`;
+    if (webApp && typeof webApp.openTelegramLink === "function") {
+      webApp.openTelegramLink(url);
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function runSourceAction(candidate, action) {
+    if (sourcesBusy) return;
+    setSourcesBusy(true);
+    clearSourcesError();
+    try {
+      let path;
+      if (action === "verify") {
+        path = API.sourceVerify(candidate.handle);
+      } else if (action === "enable" && candidate.sourceId !== null) {
+        path = API.sourceEnable(candidate.sourceId);
+      } else if (action === "disable" && candidate.sourceId !== null) {
+        path = API.sourceDisable(candidate.sourceId);
+      } else {
+        throw new ApiError("Действие для этого источника недоступно.");
+      }
+      await apiRequest(path, {
+        method: "POST",
+        body: {},
+        normalizer: null,
+      });
+      if (webApp && webApp.HapticFeedback) {
+        webApp.HapticFeedback.notificationOccurred("success");
+      }
+      await loadSources({ force: true });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        handleError(error);
+      } else {
+        showSourcesError(
+          error instanceof ApiError
+            ? error.message
+            : "Не удалось изменить источник.",
+        );
+      }
+    } finally {
+      setSourcesBusy(false);
+    }
+  }
+
+  function renderSources() {
+    sourcesList.replaceChildren();
+    const verifiedCount = sourceCatalog.filter((item) => (
+      item.state === "verified_disabled" || item.state === "enabled"
+    )).length;
+    const enabledCount = sourceCatalog.filter((item) => item.state === "enabled").length;
+    sourcesTotal.textContent = String(sourceCatalog.length);
+    sourcesVerified.textContent = String(verifiedCount);
+    sourcesEnabled.textContent = String(enabledCount);
+    renderReaderRuntime();
+
+    const visible = sourceCatalog.filter((item) => {
+      if (sourceFilter === "A") return item.priority === "A";
+      if (sourceFilter === "enabled") return item.state === "enabled";
+      return true;
+    });
+    sourcesEmpty.hidden = visible.length !== 0;
+
+    visible.forEach((candidate) => {
+      const card = createElement(
+        "article",
+        `source-item${candidate.state === "enabled" ? " source-item--enabled" : ""}`,
+      );
+      const head = createElement("div", "source-item__head");
+      const identity = createElement("div");
+      identity.append(
+        createElement("h3", "source-item__title", candidate.title),
+        createElement("p", "source-item__handle", `@${candidate.handle} · ${sourceGeoLabel(candidate.geo)}`),
+      );
+      const badges = createElement("div", "source-item__badges");
+      badges.append(createElement("span", "source-badge", `Приоритет ${candidate.priority}`));
+      const stateClass = candidate.state === "enabled"
+        ? "source-badge source-badge--enabled"
+        : candidate.state === "verified_disabled"
+          ? "source-badge source-badge--ready"
+          : "source-badge source-badge--warning";
+      badges.append(createElement("span", stateClass, sourceStateLabel(candidate.state)));
+      head.append(identity, badges);
+      card.append(head);
+      if (candidate.reason) {
+        card.append(createElement("p", "source-item__reason", candidate.reason));
+      }
+
+      const actions = createElement("div", "source-item__actions");
+      const openButton = createElement("button", "source-action", "Открыть в TG");
+      openButton.type = "button";
+      openButton.addEventListener("click", () => openTelegramSource(candidate.handle));
+      actions.append(openButton);
+
+      const actionButton = createElement("button", "source-action");
+      actionButton.type = "button";
+      if (candidate.state === "enabled") {
+        actionButton.className = "source-action source-action--danger";
+        actionButton.textContent = "Выключить";
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "disable"));
+      } else if (candidate.state === "verified_disabled") {
+        actionButton.className = "source-action source-action--primary";
+        actionButton.textContent = "Включить";
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "enable"));
+      } else {
+        actionButton.className = "source-action source-action--primary";
+        actionButton.textContent = "Проверить";
+        actionButton.addEventListener("click", () => runSourceAction(candidate, "verify"));
+      }
+      actions.append(actionButton);
+      card.append(actions);
+      sourcesList.append(card);
+    });
+  }
+
+  async function loadSources({ force = false } = {}) {
+    if (sourcesSection.hidden || (sourcesBusy && !force)) return;
+    setSourcesBusy(true);
+    clearSourcesError();
+    try {
+      const [payload, runtime] = await Promise.all([
+        apiRequest(API.sourcesCatalog, {
+          normalizer: normalizeCatalogResponse,
+        }),
+        apiRequest(API.readerStatus, {
+          normalizer: normalizeReaderStatus,
+        }),
+      ]);
+      sourceCatalog = payload.candidates;
+      readerRuntime = runtime;
+      renderSources();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        handleError(error);
+      } else {
+        showSourcesError(
+          error instanceof ApiError
+            ? error.message
+            : "Не удалось загрузить каталог источников.",
+        );
+      }
+    } finally {
+      setSourcesBusy(false);
+    }
+  }
+
+  async function apiRequest(
+    path,
+    { method = "GET", body, normalizer = normalizeResponse } = {},
+  ) {
     if (!initData) {
       throw new ApiError("Mini App не получило данные авторизации Telegram.", 401);
     }
@@ -821,7 +1993,7 @@ body[data-busy="true"] .icon-button {
       throw new ApiError(safeMessage, response.status, retryAfter);
     }
 
-    return normalizeResponse(payload);
+    return typeof normalizer === "function" ? normalizer(payload) : payload;
   }
 
   function stopLockTimer() {
@@ -858,6 +2030,10 @@ body[data-busy="true"] .icon-button {
   function applyState(payload) {
     clearError();
     stopLockTimer();
+
+    if (payload.state !== "authorized") {
+      sourcesSection.hidden = true;
+    }
 
     if (payload.flowId) {
       flowId = payload.flowId;
@@ -919,10 +2095,12 @@ body[data-busy="true"] .icon-button {
           tone: "success",
           title: "Сессия Reader сохранена",
           message: payload.message || "Аккаунт проверен. Зашифрованная сессия хранится на BotHost; сборщик запускается отдельно.",
-          reader: "Не запущен",
+          reader: "Ожидает источники",
           session: "Сохранена",
         });
         showPanel("success");
+        sourcesSection.hidden = false;
+        window.setTimeout(() => loadSources(), 0);
         break;
 
       case "locked":
@@ -953,6 +2131,7 @@ body[data-busy="true"] .icon-button {
 
     if (error instanceof ApiError && error.status === 401) {
       flowId = null;
+      sourcesSection.hidden = true;
       setStatus({
         tone: "danger",
         title: "Доступ Telegram истёк",
@@ -969,6 +2148,22 @@ body[data-busy="true"] .icon-button {
       ? error.message
       : "Произошла непредвиденная ошибка. Повторите попытку.";
     showError(message);
+  }
+
+  async function handleAuthStepError(error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 429)) {
+      handleError(error);
+      return;
+    }
+    const originalMessage = error instanceof ApiError
+      ? error.message
+      : "Произошла непредвиденная ошибка. Повторите попытку.";
+    try {
+      applyState(await apiRequest(API.status));
+      showError(originalMessage);
+    } catch (statusError) {
+      handleError(statusError);
+    }
   }
 
   async function refreshStatus() {
@@ -1007,7 +2202,7 @@ body[data-busy="true"] .icon-button {
       phoneInput.value = "";
       applyState(payload);
     } catch (error) {
-      handleError(error);
+      await handleAuthStepError(error);
     } finally {
       setBusy(false);
     }
@@ -1037,7 +2232,7 @@ body[data-busy="true"] .icon-button {
         body: { flow_id: flowId, code },
       }));
     } catch (error) {
-      handleError(error);
+      await handleAuthStepError(error);
     } finally {
       setBusy(false);
     }
@@ -1070,7 +2265,7 @@ body[data-busy="true"] .icon-button {
         body: { flow_id: flowId, password },
       }));
     } catch (error) {
-      handleError(error);
+      await handleAuthStepError(error);
     } finally {
       setBusy(false);
     }
@@ -1096,7 +2291,7 @@ body[data-busy="true"] .icon-button {
           body: { flow_id: currentFlowId },
         }));
       } catch (error) {
-        handleError(error);
+        await handleAuthStepError(error);
       } finally {
         setBusy(false);
       }
@@ -1113,6 +2308,20 @@ body[data-busy="true"] .icon-button {
 
   refreshButton.addEventListener("click", refreshStatus);
   successRefreshButton.addEventListener("click", refreshStatus);
+  sourcesRefreshButton.addEventListener("click", () => loadSources());
+  sourceFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      sourceFilter = button.dataset.sourceFilter || "all";
+      sourceFilterButtons.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("filter-button--active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      renderSources();
+    });
+  });
+  fullscreenButton.addEventListener("click", toggleFullscreen);
+  document.addEventListener("fullscreenchange", syncFullscreenState);
   reauthorizeButton.addEventListener("click", () => {
     if (busy) return;
     replaceExisting = true;
@@ -1133,7 +2342,27 @@ body[data-busy="true"] .icon-button {
   if (webApp) {
     webApp.ready();
     webApp.expand();
+    try {
+      webApp.setHeaderColor("#080c09");
+      webApp.setBackgroundColor("#080c09");
+      if (typeof webApp.setBottomBarColor === "function") {
+        webApp.setBottomBarColor("#080c09");
+      }
+    } catch (_error) {
+      // Older clients may expose only part of the color API.
+    }
+    if (telegramFullscreenSupported() && typeof webApp.onEvent === "function") {
+      webApp.onEvent("fullscreenChanged", syncFullscreenState);
+      webApp.onEvent("fullscreenFailed", (event) => {
+        syncFullscreenState();
+        if (!event || event.error !== "ALREADY_FULLSCREEN") {
+          showError("Telegram не смог открыть полноэкранный режим на этом устройстве.");
+        }
+      });
+    }
   }
+
+  syncFullscreenState();
 
   if (!initData) {
     setBusy(false);

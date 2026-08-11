@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings
@@ -56,7 +57,7 @@ class IngestionTests(unittest.IsolatedAsyncioTestCase):
                 title="Бизнес Екатеринбурга",
                 telegram_chat_id=CHAT_ID,
                 account_user_id=777,
-                checked_at="2026-08-09T12:00:00+00:00",
+                checked_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
                 report_schema_version=1,
             ),
             city_slug="ekaterinburg",

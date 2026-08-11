@@ -11,6 +11,7 @@ import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlencode
 
@@ -21,6 +22,7 @@ from cryptography.fernet import Fernet
 
 from server.parser_login import LoginStatus, ParserLoginError
 from server.settings import ServerSettings
+from server.source_service import SourceServiceError
 from server.web_app import (
     DIAGNOSTICS_TASK_KEY,
     LOGIN_SERVICE_KEY,
@@ -107,13 +109,101 @@ class FakeLoginService:
         self.closed = True
 
 
+class FakeLiveReader:
+    def __init__(self) -> None:
+        self.start_calls = 0
+        self.stop_calls = 0
+        self.snapshot = SimpleNamespace(
+            state="paused",
+            active_source_count=0,
+            pending_event_count=0,
+            heartbeat_at=None,
+            last_error_code="collector_disabled",
+            updated_at="2026-08-11T10:00:00Z",
+        )
+
+    async def start(self) -> None:
+        self.start_calls += 1
+
+    async def stop(self) -> None:
+        self.stop_calls += 1
+
+    async def status(self) -> object:
+        return self.snapshot
+
+
+class FakeSourceService:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, ...]] = []
+        self.error: SourceServiceError | None = None
+
+    async def catalog(self) -> dict[str, object]:
+        self.calls.append(("catalog",))
+        if self.error:
+            raise self.error
+        return {
+            "schema_version": 1,
+            "researched_at": "2026-08-11T00:00:00+00:00",
+            "candidates": [
+                {
+                    "priority": "A",
+                    "handle": "beboss_chat",
+                    "title": "Чат предпринимателей",
+                    "category": "business",
+                    "geo": "federal",
+                    "public_url": "https://t.me/beboss_chat",
+                    "noise_risk": "medium",
+                    "reason": "Публичное сообщество предпринимателей.",
+                    "state": "candidate",
+                    "source_id": None,
+                    "reader_status": None,
+                }
+            ],
+        }
+
+    async def sources(self) -> list[dict[str, object]]:
+        self.calls.append(("sources",))
+        return []
+
+    async def verify(
+        self,
+        *,
+        handle: str,
+        actor_telegram_id: int,
+    ) -> dict[str, object]:
+        self.calls.append(("verify", handle, actor_telegram_id))
+        return {"id": 5, "public_handle": handle, "enabled": False}
+
+    async def enable(
+        self,
+        *,
+        source_id: int,
+        actor_telegram_id: int,
+    ) -> dict[str, object]:
+        self.calls.append(("enable", source_id, actor_telegram_id))
+        return {"id": source_id, "public_handle": "beboss_chat", "enabled": True}
+
+    async def disable(
+        self,
+        *,
+        source_id: int,
+        actor_telegram_id: int,
+    ) -> dict[str, object]:
+        self.calls.append(("disable", source_id, actor_telegram_id))
+        return {"id": source_id, "public_handle": "beboss_chat", "enabled": False}
+
+
 class WebAppTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.service = FakeLoginService()
+        self.reader = FakeLiveReader()
+        self.sources = FakeSourceService()
         app = create_app(
             settings(Path(self.temp_dir.name) / "reader.enc"),
             login_service=self.service,  # type: ignore[arg-type]
+            source_service=self.sources,  # type: ignore[arg-type]
+            live_reader=self.reader,  # type: ignore[arg-type]
             runtime_diagnostics=False,
         )
         self.client = TestClient(TestServer(app))
@@ -188,11 +278,38 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["retry_after"], 91)
         self.assertEqual(response.headers["Retry-After"], "91")
 
+    async def test_reader_is_restarted_after_successful_login(self) -> None:
+        self.assertEqual(self.reader.start_calls, 1)
+        response = await self.client.post(
+            "/api/telegram/auth/password",
+            headers={"Authorization": signed_header()},
+            json={"flow_id": "flow-1", "password": "secret-value"},
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual((await response.json())["state"], "authorized")
+        self.assertEqual(self.reader.stop_calls, 1)
+        self.assertEqual(self.reader.start_calls, 2)
+
+    async def test_reauthorization_keeps_existing_reader_live_until_success(self) -> None:
+        response = await self.client.post(
+            "/api/telegram/auth/phone",
+            headers={"Authorization": signed_header()},
+            json={"phone": "+79991234567", "replace": True},
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual((await response.json())["state"], "code_required")
+        self.assertEqual(self.reader.stop_calls, 0)
+        self.assertEqual(self.reader.start_calls, 1)
+
     async def test_static_app_is_served_without_session_material(self) -> None:
         response = await self.client.get("/")
         self.assertEqual(response.status, 200)
         html = await response.text()
-        self.assertIn("Telegram Reader", html)
+        self.assertIn("Лиды франшизы", html)
+        self.assertIn("requestFullscreen", html)
+        self.assertIn("exitFullscreen", html)
+        self.assertIn("#31d843", html.lower())
+        self.assertIn("sources-section", html)
         self.assertNotIn("SESSION_STRING", html)
         self.assertNotIn("./app.js", html)
         self.assertNotIn("./app.css", html)
@@ -226,6 +343,75 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(second_nonce_match)
         assert second_nonce_match is not None
         self.assertNotEqual(second_nonce_match.group(1), nonce_match.group(1))
+
+    async def test_source_catalog_and_reader_status_require_admin(self) -> None:
+        unauthorized = await self.client.get("/api/sources/catalog")
+        self.assertEqual(unauthorized.status, 401)
+        self.assertEqual(self.sources.calls, [])
+
+        headers = {"Authorization": signed_header()}
+        catalog = await self.client.get("/api/sources/catalog", headers=headers)
+        self.assertEqual(catalog.status, 200)
+        payload = await catalog.json()
+        self.assertEqual(payload["candidates"][0]["handle"], "beboss_chat")
+
+        runtime = await self.client.get("/api/reader/status", headers=headers)
+        self.assertEqual(runtime.status, 200)
+        runtime_payload = await runtime.json()
+        self.assertEqual(runtime_payload["state"], "paused")
+        self.assertEqual(runtime_payload["last_error_code"], "collector_disabled")
+        self.assertNotIn("account_user_id", runtime_payload)
+
+    async def test_source_mutations_accept_only_empty_json_and_use_admin_actor(self) -> None:
+        self.service.status_result = LoginStatus(state="authorized")
+        headers = {"Authorization": signed_header()}
+        rejected = await self.client.post(
+            "/api/sources/beboss_chat/verify",
+            headers=headers,
+            json={"telegram_chat_id": -1001234567890},
+        )
+        self.assertEqual(rejected.status, 400)
+        self.assertEqual(self.sources.calls, [])
+
+        verified = await self.client.post(
+            "/api/sources/beboss_chat/verify",
+            headers=headers,
+            json={},
+        )
+        self.assertEqual(verified.status, 200)
+        self.assertEqual(self.sources.calls, [("verify", "beboss_chat", 111)])
+
+        enabled = await self.client.post(
+            "/api/sources/5/enable",
+            headers=headers,
+            json={},
+        )
+        self.assertEqual(enabled.status, 200)
+        self.assertEqual(self.sources.calls[-1], ("enable", 5, 111))
+
+        disabled = await self.client.post(
+            "/api/sources/5/disable",
+            headers=headers,
+            json={},
+        )
+        self.assertEqual(disabled.status, 200)
+        self.assertEqual(self.sources.calls[-1], ("disable", 5, 111))
+
+    async def test_source_errors_are_safe_and_rate_limited(self) -> None:
+        self.sources.error = SourceServiceError(
+            "telegram_rate_limited",
+            "Telegram просит подождать.",
+            http_status=429,
+            retry_after=73,
+        )
+        response = await self.client.get(
+            "/api/sources/catalog",
+            headers={"Authorization": signed_header()},
+        )
+        self.assertEqual(response.status, 429)
+        payload = await response.json()
+        self.assertEqual(payload["error"], "telegram_rate_limited")
+        self.assertEqual(response.headers["Retry-After"], "73")
 
     async def test_diagnostic_log_never_includes_query_string(self) -> None:
         captured = io.StringIO()

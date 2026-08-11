@@ -16,9 +16,11 @@ from server.miniapp_auth import (
     MiniAppPrincipal,
     validate_miniapp_init_data,
 )
+from server.live_reader import LiveReaderService
 from server.parser_login import ParserLoginError, ParserLoginService
 from server.session_store import EncryptedSessionStore
 from server.settings import ServerSettings
+from server.source_service import SourceManagementService, SourceServiceError
 
 
 LOGGER = logging.getLogger(__name__)
@@ -30,6 +32,8 @@ SELF_CHECK_INTERVAL_SECONDS = 60
 
 SETTINGS_KEY = web.AppKey("settings", ServerSettings)
 LOGIN_SERVICE_KEY = web.AppKey("login_service", ParserLoginService)
+SOURCE_SERVICE_KEY = web.AppKey("source_service", SourceManagementService)
+LIVE_READER_KEY = web.AppKey("live_reader", LiveReaderService)
 CSP_NONCE_KEY = web.RequestKey("csp_nonce", str)
 DIAGNOSTICS_TASK_KEY = web.AppKey("diagnostics_task", asyncio.Task)
 SAFE_DIAGNOSTIC_PATHS = frozenset(
@@ -41,6 +45,9 @@ SAFE_DIAGNOSTIC_PATHS = frozenset(
         "/api/telegram/auth/code",
         "/api/telegram/auth/password",
         "/api/telegram/auth/cancel",
+        "/api/sources/catalog",
+        "/api/sources",
+        "/api/reader/status",
     }
 )
 
@@ -159,6 +166,20 @@ async def api_error_middleware(
             status=exc.http_status,
             headers=headers,
         )
+    except SourceServiceError as exc:
+        payload = {
+            "error": exc.code,
+            "message": exc.public_message,
+        }
+        headers = None
+        if exc.retry_after is not None:
+            payload["retry_after"] = exc.retry_after
+            headers = {"Retry-After": str(exc.retry_after)}
+        return _json_response(
+            payload,
+            status=exc.http_status,
+            headers=headers,
+        )
     except ApiRequestError as exc:
         return _json_response(
             {
@@ -250,6 +271,8 @@ async def health(request: web.Request) -> web.Response:
 async def auth_status(request: web.Request) -> web.Response:
     principal = _authorize(request)
     status = await request.app[LOGIN_SERVICE_KEY].status(principal.user_id)
+    if status.state == "authorized":
+        await _resume_live_reader_if_stopped(request.app)
     return _json_response(status.as_dict())
 
 
@@ -278,6 +301,8 @@ async def auth_code(request: web.Request) -> web.Response:
         body["flow_id"],
         body["code"],
     )
+    if status.state == "authorized":
+        await _restart_live_reader(request.app)
     return _json_response(status.as_dict())
 
 
@@ -292,6 +317,8 @@ async def auth_password(request: web.Request) -> web.Response:
         body["flow_id"],
         body["password"],
     )
+    if status.state == "authorized":
+        await _restart_live_reader(request.app)
     return _json_response(status.as_dict())
 
 
@@ -306,6 +333,174 @@ async def auth_cancel(request: web.Request) -> web.Response:
         body["flow_id"],
     )
     return _json_response(status.as_dict())
+
+
+def _source_id(request: web.Request) -> int:
+    raw = request.match_info.get("source_id", "")
+    try:
+        source_id = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ApiRequestError("Некорректный идентификатор источника.") from exc
+    if source_id <= 0:
+        raise ApiRequestError("Некорректный идентификатор источника.")
+    return source_id
+
+
+async def sources_catalog(request: web.Request) -> web.Response:
+    _authorize(request)
+    if request.query_string:
+        raise ApiRequestError("Параметры запроса здесь не поддерживаются.")
+    payload = await request.app[SOURCE_SERVICE_KEY].catalog()
+    return _json_response(payload)
+
+
+async def sources_list(request: web.Request) -> web.Response:
+    _authorize(request)
+    if request.query_string:
+        raise ApiRequestError("Параметры запроса здесь не поддерживаются.")
+    sources = await request.app[SOURCE_SERVICE_KEY].sources()
+    return _json_response({"sources": sources})
+
+
+async def source_verify(request: web.Request) -> web.Response:
+    principal = await _authorize_source_mutation(request)
+    await _read_exact_json(request, required_fields=frozenset())
+    source = await request.app[SOURCE_SERVICE_KEY].verify(
+        handle=request.match_info.get("handle", ""),
+        actor_telegram_id=principal.user_id,
+    )
+    return _json_response({"source": source})
+
+
+async def source_enable(request: web.Request) -> web.Response:
+    principal = await _authorize_source_mutation(request)
+    await _read_exact_json(request, required_fields=frozenset())
+    source = await request.app[SOURCE_SERVICE_KEY].enable(
+        source_id=_source_id(request),
+        actor_telegram_id=principal.user_id,
+    )
+    return _json_response({"source": source})
+
+
+async def source_disable(request: web.Request) -> web.Response:
+    principal = await _authorize_source_mutation(request)
+    await _read_exact_json(request, required_fields=frozenset())
+    source = await request.app[SOURCE_SERVICE_KEY].disable(
+        source_id=_source_id(request),
+        actor_telegram_id=principal.user_id,
+    )
+    return _json_response({"source": source})
+
+
+async def reader_status(request: web.Request) -> web.Response:
+    _authorize(request)
+    if request.query_string:
+        raise ApiRequestError("Параметры запроса здесь не поддерживаются.")
+    snapshot = await request.app[LIVE_READER_KEY].status()
+    if snapshot is None:
+        return _json_response(
+            {
+                "state": "stopped",
+                "active_source_count": 0,
+                "pending_event_count": 0,
+                "heartbeat_at": None,
+                "last_error_code": None,
+                "updated_at": None,
+            }
+        )
+    return _json_response(
+        {
+            "state": snapshot.state,
+            "active_source_count": snapshot.active_source_count,
+            "pending_event_count": snapshot.pending_event_count,
+            "heartbeat_at": snapshot.heartbeat_at,
+            "last_error_code": snapshot.last_error_code,
+            "updated_at": snapshot.updated_at,
+        }
+    )
+
+
+async def _authorize_source_mutation(
+    request: web.Request,
+) -> MiniAppPrincipal:
+    principal = _authorize(request)
+    status = await request.app[LOGIN_SERVICE_KEY].status(principal.user_id)
+    if status.state != "authorized":
+        raise SourceServiceError(
+            "login_in_progress",
+            "Сначала завершите или отмените вход в Telegram Reader.",
+            http_status=409,
+        )
+    return principal
+
+
+async def _pause_live_reader(app: web.Application) -> bool:
+    reader = app.get(LIVE_READER_KEY)
+    if reader is None:
+        return True
+    try:
+        await reader.stop()
+        return True
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        _diagnostic_print(
+            f"[reader] pause failed; error={type(exc).__name__}"
+        )
+        return False
+
+
+async def _restart_live_reader(app: web.Application) -> None:
+    reader = app.get(LIVE_READER_KEY)
+    if reader is None:
+        return
+    if not await _pause_live_reader(app):
+        return
+    try:
+        await reader.start()
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        _diagnostic_print(
+            f"[reader] restart failed; error={type(exc).__name__}"
+        )
+
+
+async def _resume_live_reader_if_stopped(app: web.Application) -> None:
+    reader = app.get(LIVE_READER_KEY)
+    if reader is None:
+        return
+    try:
+        snapshot = await reader.status()
+        if snapshot is None or snapshot.state == "stopped":
+            await reader.start()
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        _diagnostic_print(
+            f"[reader] resume failed; error={type(exc).__name__}"
+        )
+
+
+async def _start_live_reader(app: web.Application) -> None:
+    reader = app.get(LIVE_READER_KEY)
+    if reader is None:
+        return
+    try:
+        await reader.start()
+        snapshot = await reader.status()
+        state = snapshot.state if snapshot is not None else "stopped"
+        active = snapshot.active_source_count if snapshot is not None else 0
+        _diagnostic_print(
+            f"[reader] initialized; state={state} active_sources={active}"
+        )
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        _diagnostic_print(
+            f"[reader] initialization failed; error={type(exc).__name__}"
+        )
+        raise
 
 
 async def _runtime_diagnostics(app: web.Application) -> None:
@@ -370,13 +565,18 @@ async def _cleanup_login_service(app: web.Application) -> None:
                 )
     finally:
         _diagnostic_print("[lifecycle] diagnostics stopped")
-        await app[LOGIN_SERVICE_KEY].close()
+        try:
+            await _pause_live_reader(app)
+        finally:
+            await app[LOGIN_SERVICE_KEY].close()
 
 
 def create_app(
     settings: ServerSettings,
     *,
     login_service: ParserLoginService | None = None,
+    source_service: SourceManagementService | None = None,
+    live_reader: LiveReaderService | None = None,
     runtime_diagnostics: bool = True,
 ) -> web.Application:
     if not WEB_INDEX.is_file():
@@ -401,6 +601,10 @@ def create_app(
     )
     app[SETTINGS_KEY] = settings
     app[LOGIN_SERVICE_KEY] = login_service
+    if source_service is not None:
+        app[SOURCE_SERVICE_KEY] = source_service
+    if live_reader is not None:
+        app[LIVE_READER_KEY] = live_reader
     app.router.add_get("/", index)
     app.router.add_get("/health", health)
     app.router.add_get("/api/telegram/auth/status", auth_status)
@@ -408,6 +612,15 @@ def create_app(
     app.router.add_post("/api/telegram/auth/code", auth_code)
     app.router.add_post("/api/telegram/auth/password", auth_password)
     app.router.add_post("/api/telegram/auth/cancel", auth_cancel)
+    if source_service is not None:
+        app.router.add_get("/api/sources/catalog", sources_catalog)
+        app.router.add_get("/api/sources", sources_list)
+        app.router.add_post("/api/sources/{handle}/verify", source_verify)
+        app.router.add_post("/api/sources/{source_id}/enable", source_enable)
+        app.router.add_post("/api/sources/{source_id}/disable", source_disable)
+    if live_reader is not None:
+        app.router.add_get("/api/reader/status", reader_status)
+        app.on_startup.append(_start_live_reader)
     if runtime_diagnostics:
         app.on_startup.append(_start_runtime_diagnostics)
     app.on_cleanup.append(_cleanup_login_service)

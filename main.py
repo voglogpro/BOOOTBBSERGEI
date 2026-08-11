@@ -7,7 +7,12 @@ from pathlib import Path
 
 from aiohttp import web
 
+from app.config import Settings
+from server.live_reader import LiveReaderService
+from server.parser_login import ParserLoginService
+from server.session_store import EncryptedSessionStore
 from server.settings import ServerSettings
+from server.source_service import SourceManagementService
 from server.web_app import create_app
 
 
@@ -19,7 +24,32 @@ def main() -> None:
     _startup_print("[startup] bb.bike Mini App: loading configuration")
     try:
         settings = ServerSettings.from_env()
-        application = create_app(settings)
+        app_settings = Settings.from_env()
+        app_settings.ensure_runtime_directories()
+        session_store = EncryptedSessionStore(
+            encryption_key=settings.session_encryption_key,
+            path=settings.encrypted_session_path,
+        )
+        login_service = ParserLoginService(
+            settings=settings,
+            session_store=session_store,
+        )
+        live_reader = LiveReaderService(
+            app_settings=app_settings,
+            server_settings=settings,
+            session_store=session_store,
+        )
+        source_service = SourceManagementService(
+            settings=app_settings,
+            expected_account_user_id=settings.telegram_expected_user_id,
+            reader=live_reader,
+        )
+        application = create_app(
+            settings,
+            login_service=login_service,
+            source_service=source_service,
+            live_reader=live_reader,
+        )
     except Exception as exc:
         _startup_print(
             f"[startup] FAILED: {type(exc).__name__}: {exc}"

@@ -1,7 +1,8 @@
 # Контракт Telethon Reader
 
-Административная часть этапа 2 реализована командами `authorize` и
-`resolve-sources`. Live-reader остаётся следующим отдельным этапом.
+Административные CLI-команды `authorize` и `resolve-sources` сохранены для
+локальной диагностики. Production-вход, проверка источников и live Reader
+реализованы в BotHost Mini App.
 
 ## Зафиксированная версия
 
@@ -13,11 +14,11 @@
 
 1. Создать собственные `api_id` и `api_hash` в
    [my.telegram.org](https://core.telegram.org/api/obtaining_api_id).
-2. На доверенном локальном компьютере запустить отдельный интерактивный script.
-3. Ввести телефон, одноразовый код и при наличии пароль 2FA только в prompt.
+2. Открыть защищённый Mini App на домене BotHost из разрешённого Telegram-бота.
+3. Ввести телефон, одноразовый код и при наличии пароль 2FA только в HTTPS-форму.
 4. Сохранить `user_id`, вернуть его в `TELEGRAM_EXPECTED_USER_ID` и при каждом
    запуске сверять с `client.get_me()`.
-5. Перенести только session-файл в отдельный закрытый persistent volume.
+5. Хранить только зашифрованную StringSession в `/app/data` BotHost.
 
 Пошаговая инструкция: [TELEGRAM-SETUP.md](TELEGRAM-SETUP.md).
 
@@ -27,12 +28,12 @@
 
 ## Профили клиента
 
-Реализованные административные команды всегда используют
-`receive_updates=False`. Ниже показан будущий профиль этапа 3 для live-reader:
+Административные команды используют `receive_updates=False`. Production Reader
+использует следующий live-only профиль:
 
 ```python
 client = TelegramClient(
-    session_path,
+    StringSession(decrypted_session),
     api_id,
     api_hash,
     receive_updates=True,
@@ -120,7 +121,7 @@ https://t.me/<username>/<topic_id>/<message_id>
 - не сохраняет entities пользователей;
 - не имеет в коде путей отправки, вступления или чтения участников.
 
-## Gate этапа 3 — будущий live-reader
+## Gate live-reader
 
 Live-reader считается готовым, когда:
 

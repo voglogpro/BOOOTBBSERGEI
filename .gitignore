@@ -16,6 +16,10 @@ data/
 *.session-journal
 *.session-wal
 *.session-shm
+*.enc
+*.reader.lock
+*.reader-cooldown.json
+*.reader-cooldown.json.tmp
 *.session.cooldown.json
 *.session.cooldown.json.tmp
 *.login-cooldown.json

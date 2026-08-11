@@ -61,6 +61,24 @@ class ReaderSafetyTests(unittest.TestCase):
                     violations.append(f"{path.name}:{node.lineno}:{node.attr}")
         self.assertEqual(violations, [])
 
+    def test_live_reader_has_no_send_join_history_or_participant_path(self) -> None:
+        path = Path(__file__).resolve().parents[1] / "server" / "live_reader.py"
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        violations: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (
+                node.module or ""
+            ).startswith("telethon.tl.functions"):
+                violations.append(f"{node.lineno}:raw Telegram requests import")
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr in FORBIDDEN_CALLS:
+                    violations.append(f"{node.lineno}:{node.func.attr}")
+            if isinstance(node, ast.Name) and node.id in FORBIDDEN_TYPES:
+                violations.append(f"{node.lineno}:{node.id}")
+            if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_TYPES:
+                violations.append(f"{node.lineno}:{node.attr}")
+        self.assertEqual(violations, [])
+
 
 if __name__ == "__main__":
     unittest.main()
