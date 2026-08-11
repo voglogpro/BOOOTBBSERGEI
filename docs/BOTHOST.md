@@ -51,7 +51,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 - главный файл: `main.py`;
 - Python: 3.11 или новее;
-- внутренний порт: тот же, что в `PORT`, например `8080`;
+- внутренний порт: тот же, что в `PORT`, например `3000`;
 - включить домен BotHost и HTTPS;
 - одна реплика/один процесс, без autoscaling;
 - не запускать второй проект с той же Telegram-сессией.
@@ -66,7 +66,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 ```dotenv
 APP_ENV=production
 APP_HOST=0.0.0.0
-PORT=8080
+PORT=3000
 
 DATA_DIR=/app/data
 DATABASE_PATH=/app/data/leads.sqlite3

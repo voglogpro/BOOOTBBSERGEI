@@ -81,7 +81,7 @@ class ServerSettings:
         if not host:
             raise ValueError("APP_HOST cannot be empty")
 
-        port_raw = os.getenv("PORT", os.getenv("APP_PORT", "8080")).strip()
+        port_raw = os.getenv("PORT", os.getenv("APP_PORT", "3000")).strip()
         port = _bounded_int("PORT", port_raw, minimum=1, maximum=65535)
 
         return cls(

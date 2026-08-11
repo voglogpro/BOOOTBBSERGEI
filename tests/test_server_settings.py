@@ -20,6 +20,12 @@ BASE_ENV = {
 
 
 class ServerSettingsTests(unittest.TestCase):
+    def test_default_port_is_3000(self) -> None:
+        with patch.dict(os.environ, BASE_ENV, clear=True):
+            settings = ServerSettings.from_env(None)
+
+        self.assertEqual(settings.port, 3000)
+
     def test_valid_settings_use_bothost_port(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             env = {
