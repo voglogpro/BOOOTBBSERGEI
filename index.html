@@ -1,3 +1,651 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#111827">
+  <title>bb.bike — Telegram Reader</title>
+  <style nonce="__CSP_NONCE__">
+:root {
+  color-scheme: light dark;
+  --bg: var(--tg-theme-bg-color, #f4f6f8);
+  --surface: var(--tg-theme-secondary-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #111827);
+  --muted: var(--tg-theme-hint-color, #64748b);
+  --accent: var(--tg-theme-button-color, #2563eb);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --link: var(--tg-theme-link-color, #2563eb);
+  --border: color-mix(in srgb, var(--muted) 22%, transparent);
+  --success: #16a36a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --shadow: 0 18px 55px rgba(15, 23, 42, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-width: 300px;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 34rem),
+    var(--bg);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.shell {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 18px max(30px, env(safe-area-inset-bottom));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 4px 2px 22px;
+}
+
+.brand__mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  color: #111827;
+  background: #f8d448;
+  box-shadow: 0 8px 24px rgba(218, 171, 0, 0.22);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -1.5px;
+}
+
+.brand h1,
+.status-card h2,
+.panel h2 {
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.brand h1 {
+  font-size: clamp(22px, 5vw, 28px);
+}
+
+.eyebrow,
+.step {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.status-card,
+.auth-card,
+.security-note {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.status-card {
+  padding: 20px;
+  border-radius: 24px 24px 13px 13px;
+}
+
+.status-card__head,
+.status-heading {
+  display: flex;
+  align-items: center;
+}
+
+.status-card__head {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.status-heading {
+  gap: 12px;
+  min-width: 0;
+}
+
+.status-card h2 {
+  overflow: hidden;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-dot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 3px solid color-mix(in srgb, var(--muted) 22%, transparent);
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status-dot--loading {
+  background: var(--accent);
+  animation: pulse 1.3s ease-in-out infinite;
+}
+
+.status-dot--success {
+  background: var(--success);
+}
+
+.status-dot--warning {
+  background: var(--warning);
+}
+
+.status-dot--danger {
+  background: var(--danger);
+}
+
+.icon-button,
+.password-toggle {
+  border: 0;
+  color: var(--link);
+  background: transparent;
+  cursor: pointer;
+}
+
+.icon-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 24px;
+}
+
+.status-message {
+  min-height: 42px;
+  margin: 17px 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-metric {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.status-metric span,
+.status-metric strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-metric span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.status-metric strong {
+  font-size: 14px;
+}
+
+.auth-card {
+  position: relative;
+  margin-top: 8px;
+  padding: clamp(22px, 6vw, 34px);
+  border-radius: 13px 13px 24px 24px;
+}
+
+.panel {
+  animation: panel-in 180ms ease-out;
+}
+
+.panel--center {
+  padding: 10px 0;
+  text-align: center;
+}
+
+.panel h2 {
+  font-size: clamp(23px, 6vw, 30px);
+}
+
+.panel p {
+  line-height: 1.55;
+}
+
+.panel__description,
+.panel--center > p {
+  margin: 10px auto 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.panel--center > p {
+  max-width: 440px;
+}
+
+form {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+label {
+  margin-bottom: -4px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  outline: none;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 62%, var(--surface));
+  font-size: 17px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.code-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+.field-hint {
+  margin: -4px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 92px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  min-height: 38px;
+  padding: 0 5px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.primary-button,
+.secondary-button,
+.text-button {
+  min-height: 50px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 800;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.primary-button {
+  margin-top: 5px;
+  border: 0;
+  color: var(--accent-text);
+  background: var(--accent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.secondary-button {
+  padding: 0 20px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.text-button {
+  border: 0;
+  color: var(--link);
+  background: transparent;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.spinner {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 18px;
+  border: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.result-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 18px;
+  place-items: center;
+  border-radius: 19px;
+  font-size: 23px;
+  font-weight: 900;
+}
+
+.result-icon--success {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 13%, transparent);
+}
+
+.result-icon--warning {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 13%, transparent);
+}
+
+.countdown {
+  min-height: 24px;
+  color: var(--warning) !important;
+  font-weight: 800;
+}
+
+.error-box {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  border-radius: 13px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 14px;
+  padding: 15px 17px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.security-note__icon {
+  color: var(--success);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.security-note p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.security-note strong {
+  color: var(--text);
+}
+
+body[data-busy="true"] .icon-button {
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  50% { opacity: 0.35; }
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 420px) {
+  .shell {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .status-card,
+  .auth-card {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .status-card h2 {
+    max-width: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+  </style>
+</head>
+<body>
+  <main class="shell" id="app" aria-busy="true">
+    <header class="brand">
+      <div class="brand__mark" aria-hidden="true">bb</div>
+      <div>
+        <p class="eyebrow">bb.bike leads</p>
+        <h1>Telegram Reader</h1>
+      </div>
+    </header>
+
+    <section class="status-card" aria-labelledby="status-title">
+      <div class="status-card__head">
+        <div class="status-heading">
+          <span class="status-dot status-dot--loading" id="status-dot" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">Состояние подключения</p>
+            <h2 id="status-title">Проверяем Reader…</h2>
+          </div>
+        </div>
+        <button class="icon-button" id="refresh-button" type="button" aria-label="Обновить состояние" title="Обновить">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </div>
+
+      <p class="status-message" id="status-message" aria-live="polite">
+        Получаем безопасный статус серверной сессии.
+      </p>
+
+      <div class="status-grid">
+        <div class="status-metric">
+          <span>Reader</span>
+          <strong id="reader-status">—</strong>
+        </div>
+        <div class="status-metric">
+          <span>Сессия</span>
+          <strong id="session-status">—</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth-card" aria-live="polite">
+      <div class="panel panel--center" id="loading-panel">
+        <span class="spinner" aria-hidden="true"></span>
+        <h2>Загружаем состояние</h2>
+        <p>Это займёт несколько секунд.</p>
+      </div>
+
+      <div class="panel" id="phone-panel" hidden>
+        <p class="step">Шаг 1 из 3</p>
+        <h2>Введите номер аккаунта</h2>
+        <p class="panel__description">
+          Используйте отдельный Telegram-аккаунт, который будет только читать выбранные публичные группы.
+        </p>
+        <form id="phone-form" novalidate>
+          <label for="phone-input">Номер телефона</label>
+          <input
+            id="phone-input"
+            type="tel"
+            inputmode="tel"
+            autocomplete="off"
+            maxlength="20"
+            placeholder="+7 999 123-45-67"
+            aria-describedby="phone-hint"
+            required
+          >
+          <p class="field-hint" id="phone-hint">Международный формат, начиная с «+».</p>
+          <button class="primary-button" type="submit">Получить код</button>
+        </form>
+      </div>
+
+      <div class="panel" id="code-panel" hidden>
+        <p class="step">Шаг 2 из 3</p>
+        <h2>Введите код из Telegram</h2>
+        <p class="panel__description">
+          Код придёт в официальное приложение Telegram. Mini App не записывает его в хранилище браузера.
+        </p>
+        <form id="code-form" novalidate>
+          <label for="code-input">Код подтверждения</label>
+          <input
+            id="code-input"
+            class="code-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            minlength="5"
+            maxlength="8"
+            placeholder="12345"
+            required
+          >
+          <button class="primary-button" type="submit">Подтвердить код</button>
+          <button class="text-button cancel-button" type="button">Отменить вход</button>
+        </form>
+      </div>
+
+      <div class="panel" id="password-panel" hidden>
+        <p class="step">Шаг 3 из 3</p>
+        <h2>Нужен пароль 2FA</h2>
+        <p class="panel__description">
+          Для аккаунта включена двухэтапная защита. Пароль отправляется только серверу авторизации.
+        </p>
+        <form id="password-form" novalidate>
+          <label for="password-input">Пароль двухэтапной защиты</label>
+          <div class="password-field">
+            <input
+              id="password-input"
+              type="password"
+              autocomplete="off"
+              maxlength="256"
+              data-1p-ignore
+              data-lpignore="true"
+              required
+            >
+            <button class="password-toggle" id="password-toggle" type="button" aria-label="Показать пароль">Показать</button>
+          </div>
+          <button class="primary-button" type="submit">Завершить вход</button>
+          <button class="text-button cancel-button" type="button">Отменить вход</button>
+        </form>
+      </div>
+
+      <div class="panel panel--center" id="success-panel" hidden>
+        <div class="result-icon result-icon--success" aria-hidden="true">✓</div>
+        <h2>Сессия сохранена</h2>
+        <p>Аккаунт проверен, а сессия зашифрована на BotHost. Сам сборщик сообщений включается отдельным этапом.</p>
+        <button class="secondary-button" id="reauthorize-button" type="button">Переподключить аккаунт</button>
+        <button class="text-button" id="success-refresh-button" type="button">Обновить состояние</button>
+      </div>
+
+      <div class="panel panel--center" id="locked-panel" hidden>
+        <div class="result-icon result-icon--warning" aria-hidden="true">!</div>
+        <h2>Нужна пауза</h2>
+        <p id="locked-message">Telegram временно ограничил новые попытки.</p>
+        <p class="countdown" id="lock-countdown"></p>
+        <button class="secondary-button" id="locked-refresh-button" type="button">Повторить проверку</button>
+      </div>
+
+      <div class="panel panel--center" id="telegram-required-panel" hidden>
+        <div class="result-icon result-icon--warning" aria-hidden="true">TG</div>
+        <h2>Откройте внутри Telegram</h2>
+        <p>Для защищённого входа запустите это Mini App из служебного бота bb.bike.</p>
+      </div>
+
+      <div class="error-box" id="error-box" role="alert" hidden>
+        <strong>Не удалось продолжить</strong>
+        <span id="error-message"></span>
+      </div>
+    </section>
+
+    <aside class="security-note">
+      <span class="security-note__icon" aria-hidden="true">◇</span>
+      <p><strong>Безопасный вход.</strong> Mini App не пишет телефон, код или пароль в cookies и хранилище браузера. Доступ разрешён только администраторам.</p>
+    </aside>
+  </main>
+
+  <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <script nonce="__CSP_NONCE__">
 (() => {
   "use strict";
 
@@ -501,3 +1149,6 @@
     refreshStatus();
   }
 })();
+  </script>
+</body>
+</html>

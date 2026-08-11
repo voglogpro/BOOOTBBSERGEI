@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import tempfile
 import time
 import unittest
@@ -181,7 +182,38 @@ class WebAppTests(unittest.IsolatedAsyncioTestCase):
         html = await response.text()
         self.assertIn("Telegram Reader", html)
         self.assertNotIn("SESSION_STRING", html)
+        self.assertNotIn("./app.js", html)
+        self.assertNotIn("./app.css", html)
+        self.assertNotIn("__CSP_NONCE__", html)
+        nonce_match = re.search(r'<script nonce="([A-Za-z0-9_-]+)">', html)
+        style_nonce_match = re.search(r'<style nonce="([A-Za-z0-9_-]+)">', html)
+        self.assertIsNotNone(nonce_match)
+        self.assertIsNotNone(style_nonce_match)
+        assert nonce_match is not None
+        assert style_nonce_match is not None
+        self.assertEqual(style_nonce_match.group(1), nonce_match.group(1))
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn(
+            f"'nonce-{nonce_match.group(1)}'",
+            csp,
+        )
+        self.assertNotIn("'unsafe-inline'", csp)
         self.assertEqual(response.headers["Referrer-Policy"], "no-referrer")
+
+        javascript = await self.client.get("/app.js")
+        self.assertEqual(javascript.status, 404)
+        stylesheet = await self.client.get("/app.css")
+        self.assertEqual(stylesheet.status, 404)
+
+        second_response = await self.client.get("/")
+        second_html = await second_response.text()
+        second_nonce_match = re.search(
+            r'<script nonce="([A-Za-z0-9_-]+)">',
+            second_html,
+        )
+        self.assertIsNotNone(second_nonce_match)
+        assert second_nonce_match is not None
+        self.assertNotEqual(second_nonce_match.group(1), nonce_match.group(1))
 
 
 if __name__ == "__main__":

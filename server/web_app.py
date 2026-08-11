@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +20,12 @@ from server.settings import ServerSettings
 
 
 LOGGER = logging.getLogger(__name__)
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+WEB_INDEX = Path(__file__).resolve().parent.parent / "index.html"
 MAX_JSON_BODY_BYTES = 4096
 
 SETTINGS_KEY = web.AppKey("settings", ServerSettings)
 LOGIN_SERVICE_KEY = web.AppKey("login_service", ParserLoginService)
+CSP_NONCE_KEY = web.RequestKey("csp_nonce", str)
 
 
 class ApiRequestError(ValueError):
@@ -52,10 +54,13 @@ async def security_headers_middleware(
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
     )
+    nonce = request.get(CSP_NONCE_KEY)
+    nonce_source = f" 'nonce-{nonce}'" if nonce else ""
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://telegram.org; "
-        "style-src 'self'; connect-src 'self'; img-src 'self' data:; "
+        f"script-src 'self' https://telegram.org{nonce_source}; "
+        f"style-src 'self'{nonce_source}; "
+        "connect-src 'self'; img-src 'self' data:; "
         "object-src 'none'; base-uri 'none'; form-action 'self'; "
         "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org"
     )
@@ -170,16 +175,14 @@ async def _read_exact_json(
     return body
 
 
-async def index(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(WEB_DIR / "index.html")
-
-
-async def stylesheet(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(WEB_DIR / "app.css")
-
-
-async def javascript(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(WEB_DIR / "app.js")
+async def index(request: web.Request) -> web.Response:
+    nonce = secrets.token_urlsafe(24)
+    request[CSP_NONCE_KEY] = nonce
+    document = WEB_INDEX.read_text(encoding="utf-8").replace(
+        "__CSP_NONCE__",
+        nonce,
+    )
+    return web.Response(text=document, content_type="text/html", charset="utf-8")
 
 
 async def health(request: web.Request) -> web.Response:
@@ -256,8 +259,8 @@ def create_app(
     *,
     login_service: ParserLoginService | None = None,
 ) -> web.Application:
-    if not WEB_DIR.is_dir():
-        raise RuntimeError("web assets are missing")
+    if not WEB_INDEX.is_file():
+        raise RuntimeError("index.html is missing")
     if login_service is None:
         store = EncryptedSessionStore(
             encryption_key=settings.session_encryption_key,
@@ -275,8 +278,6 @@ def create_app(
     app[SETTINGS_KEY] = settings
     app[LOGIN_SERVICE_KEY] = login_service
     app.router.add_get("/", index)
-    app.router.add_get("/app.css", stylesheet)
-    app.router.add_get("/app.js", javascript)
     app.router.add_get("/health", health)
     app.router.add_get("/api/telegram/auth/status", auth_status)
     app.router.add_post("/api/telegram/auth/phone", auth_phone)

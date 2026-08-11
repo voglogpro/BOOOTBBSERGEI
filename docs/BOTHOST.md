@@ -56,6 +56,11 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - одна реплика/один процесс, без autoscaling;
 - не запускать второй проект с той же Telegram-сессией.
 
+Корневой `index.html` содержит весь интерфейс Mini App, включая встроенные CSS
+и браузерный JavaScript. Отдельного `.js`-entrypoint в репозитории нет: BotHost
+должен запускать только `main.py` как Python-процесс. `requirements.txt` нужен
+для установки Python-зависимостей и не является стартовым файлом.
+
 Добавить переменные:
 
 ```dotenv
