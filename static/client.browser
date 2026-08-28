@@ -150,7 +150,9 @@ function renderHeader() {
 function renderToday() {
   const settings = state.settings || {};
   const stats = state.bootstrap?.stats || {};
-  const pnl = state.trades.reduce((sum, trade) => sum + Number(trade.pnl || 0), 0);
+  const pnl = state.trades
+    .filter((trade) => trade.status === "closed")
+    .reduce((sum, trade) => sum + Number(trade.pnl || 0), 0);
   const risk = state.trades.reduce((sum, trade) => sum + Number(trade.risk_amount || 0), 0);
   const planned = state.trades.filter((trade) => Number(trade.plan_followed) === 1).length;
   const planRate = state.trades.length ? Math.round(planned / state.trades.length * 100) : null;
@@ -168,20 +170,50 @@ function renderToday() {
   $("#daily-limit-copy").textContent = dailyLimit ? `${formatMoney(remaining)} из ${formatMoney(dailyLimit)}` : "Настройте счёт";
   $("#daily-limit-bar").style.width = `${usedPercent}%`;
   $("#daily-limit-bar").style.background = usedPercent >= 80 ? "var(--negative)" : usedPercent >= 50 ? "var(--warning)" : "#bce4d9";
+  const riskPerTrade = Number(settings.balance || 0) * Number(settings.risk_per_trade_pct || 0) / 100;
+  const riskCopy = `${Number(settings.risk_per_trade_pct || 0)}% · ${formatMoney(riskPerTrade)}`;
+  $("#plan-risk-limit").textContent = riskCopy;
+  $("#summary-risk-limit").textContent = riskCopy;
+  $("#plan-trades-limit").textContent = settings.max_trades_day || "—";
+  $("#summary-trades-limit").textContent = settings.max_trades_day || "—";
   renderTradeList($("#today-trades"), state.trades, true);
 }
 
+function planState(mood) {
+  if (Number(mood) <= 1) return "Пауза";
+  if (Number(mood) >= 5) return "В форме";
+  return "Ровно";
+}
+
 function populateMood(mood) {
-  if (!mood) return;
   const form = $("#mood-form");
-  const radio = $(`input[name="mood"][value="${mood.mood}"]`, form);
+  if (!mood) {
+    form.classList.remove("hidden");
+    $("#plan-summary").classList.add("hidden");
+    $("#mood-saved").classList.add("hidden");
+    return;
+  }
+  const simplifiedMood = Number(mood.mood) <= 2 ? 1 : Number(mood.mood) >= 4 ? 5 : 3;
+  const radio = $(`input[name="mood"][value="${simplifiedMood}"]`, form);
   if (radio) radio.checked = true;
   for (const key of ["energy", "confidence", "discipline"]) {
     form.elements[key].value = mood[key]; $(`#${key}-output`).value = mood[key];
   }
   for (const key of ["emotion", "note", "focus", "lesson"]) form.elements[key].value = mood[key] || "";
   form.elements.visibility.value = mood.visibility || "team";
+  $("#plan-state-mark").textContent = planState(mood.mood);
+  $("#plan-state-mark").dataset.state = simplifiedMood === 1 ? "pause" : simplifiedMood === 5 ? "ready" : "steady";
+  $("#plan-focus-copy").textContent = mood.focus || "Работать только по подтверждённому сценарию";
+  form.classList.add("hidden");
+  $("#plan-summary").classList.remove("hidden");
   $("#mood-saved").classList.remove("hidden");
+}
+
+function editPlan() {
+  $("#plan-summary").classList.add("hidden");
+  $("#mood-form").classList.remove("hidden");
+  $("#mood-saved").classList.add("hidden");
+  $("#mood-form input[name='focus']").focus();
 }
 
 function populateSettings() {
@@ -227,7 +259,7 @@ async function saveMood(event) {
       emotion: data.get("emotion"), note: data.get("note"), focus: data.get("focus"), lesson: data.get("lesson"), visibility: data.get("visibility"),
     };
     await api(`/api/moods/${todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
-    setDirty(false); haptic(); toast("Состояние сохранено"); await loadBootstrap();
+    setDirty(false); haptic(); toast("План на день сохранён"); await loadBootstrap();
   });
 }
 
@@ -235,6 +267,7 @@ function setTradeReadOnly(readOnly) {
   const form = $("#trade-form");
   form.classList.toggle("trade-form-readonly", readOnly);
   $$("input:not([type='hidden']), select, textarea", form).forEach((field) => { field.disabled = readOnly; });
+  $$(".outcome-choice button", form).forEach((button) => { button.disabled = readOnly; });
   $("#delete-trade").classList.toggle("hidden", readOnly || !form.elements.trade_id.value);
   $("#save-trade").classList.toggle("hidden", readOnly);
   $("#trade-dialog-kicker").textContent = readOnly ? "Просмотр записи" : "Журнал сделки";
@@ -247,6 +280,7 @@ function openTradeDialog(trade = null, readOnly = false) {
   form.elements.timeframe.value = "M15"; form.elements.status.value = "closed";
   form.elements.plan_followed.value = "true"; form.elements.visibility.value = state.circle ? "team" : "private";
   form.elements.trade_id.value = ""; form.elements.client_entry_id.value = entryId();
+  form.dataset.outcomeChoice = "";
   $("#trade-dialog-title").textContent = "Новая сделка"; $("#delete-trade").classList.add("hidden");
   if (trade) {
     const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
@@ -257,7 +291,7 @@ function openTradeDialog(trade = null, readOnly = false) {
     $("#trade-dialog-title").textContent = `${trade.symbol} · ${tradeStatus(trade)}`;
     $("#delete-trade").classList.remove("hidden");
   }
-  setTradeReadOnly(readOnly); updateRPreview(); setDirty(false); dialog.showModal();
+  setTradeReadOnly(readOnly); updateTradeStage(true); setDirty(false); dialog.showModal(); dialog.focus({ preventScroll: true });
 }
 
 function tradePayload(form) {
@@ -270,8 +304,44 @@ function tradePayload(form) {
 
 function updateRPreview() {
   const form = $("#trade-form"); const risk = Number(form.elements.risk_amount.value); const pnl = Number(form.elements.pnl.value);
-  $("#r-preview").textContent = risk > 0 && form.elements.pnl.value !== "" ? `Расчётный результат: ${(pnl / risk).toFixed(2)}R` : "R будет рассчитан из результата и риска.";
+  $("#r-preview").textContent = risk > 0 && form.elements.pnl.value !== "" ? `Итог: ${(pnl / risk).toFixed(2)}R` : "Укажите риск — результат в R посчитается сам.";
   form.elements.pnl.required = form.elements.status.value === "closed";
+  const kind = form.elements.pnl.value === "" ? form.dataset.outcomeChoice : pnl > 0 ? "win" : pnl < 0 ? "loss" : "zero";
+  $$(".outcome-choice button", form).forEach((button) => button.classList.toggle("active", button.dataset.outcome === kind));
+  const badge = $("#outcome-badge");
+  badge.textContent = kind === "win" ? "Прибыль" : kind === "loss" ? "Убыток" : kind === "zero" ? "В ноль" : "Без результата";
+  badge.dataset.outcome = kind || "none";
+}
+
+function updateTradeStage(syncDetails = false) {
+  const form = $("#trade-form");
+  const status = form.elements.status.value;
+  const closed = status === "closed";
+  $("#trade-outcome").classList.toggle("hidden", !closed);
+  $("#finish-trade").classList.toggle("hidden", status !== "open" || form.classList.contains("trade-form-readonly"));
+  form.elements.pnl.required = closed;
+  $("#save-trade").textContent = closed ? "Сохранить итог" : status === "open" ? "Сохранить открытую сделку" : status === "planned" ? "Сохранить план сделки" : "Сохранить отмену";
+  if (syncDetails) $("#trade-prices").open = status === "open" || status === "planned";
+  updateRPreview();
+}
+
+function chooseOutcome(kind) {
+  const form = $("#trade-form");
+  const field = form.elements.pnl;
+  form.dataset.outcomeChoice = kind;
+  if (kind === "zero") field.value = "0";
+  else if (field.value !== "") field.value = String(kind === "loss" ? -Math.abs(Number(field.value)) : Math.abs(Number(field.value)));
+  field.placeholder = kind === "loss" ? "Например: -250" : kind === "win" ? "Например: 500" : "0";
+  updateRPreview(); setDirty(true);
+  if (kind !== "zero") field.focus();
+}
+
+function normalizeOutcomeInput() {
+  const form = $("#trade-form");
+  const field = form.elements.pnl;
+  if (field.value !== "" && form.dataset.outcomeChoice === "loss" && Number(field.value) > 0) field.value = String(-Math.abs(Number(field.value)));
+  if (field.value !== "" && form.dataset.outcomeChoice === "win" && Number(field.value) < 0) field.value = String(Math.abs(Number(field.value)));
+  updateRPreview();
 }
 
 async function saveTrade(event) {
@@ -442,6 +512,7 @@ function bindEvents() {
   $$(".bottom-nav button").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
   $("#profile-shortcut").addEventListener("click", () => switchView("profile"));
   for (const selector of ["#new-trade-primary", "#open-trade-button", "#floating-trade-button"]) $(selector).addEventListener("click", () => openTradeDialog());
+  $("#edit-plan").addEventListener("click", editPlan);
   $("#mood-form").addEventListener("submit", (event) => saveMood(event).catch(showRequestError));
   $("#settings-form").addEventListener("submit", (event) => saveSettings(event).catch(showRequestError));
   for (const form of [$("#mood-form"), $("#settings-form"), $("#trade-form")]) form.addEventListener("input", () => setDirty(true));
@@ -449,7 +520,14 @@ function bindEvents() {
   $("#close-trade-dialog").addEventListener("click", async () => { if (!state.dirty || await askConfirm("Закрыть без сохранения?") ) { setDirty(false); $("#trade-dialog").close(); } });
   $("#trade-dialog").addEventListener("cancel", (event) => { if (state.dirty) { event.preventDefault(); askConfirm("Закрыть без сохранения?").then((ok) => { if (ok) { setDirty(false); $("#trade-dialog").close(); } }); } });
   $("#trade-form").addEventListener("submit", (event) => saveTrade(event).catch(showRequestError)); $("#delete-trade").addEventListener("click", () => confirmDelete().catch(showRequestError));
-  for (const key of ["risk_amount", "pnl", "status"]) $("#trade-form").elements[key].addEventListener("input", updateRPreview);
+  $("#trade-form").elements.risk_amount.addEventListener("input", updateRPreview);
+  $("#trade-form").elements.pnl.addEventListener("input", normalizeOutcomeInput);
+  $("#trade-form").elements.status.addEventListener("change", () => updateTradeStage(true));
+  $$(".outcome-choice button").forEach((button) => button.addEventListener("click", () => chooseOutcome(button.dataset.outcome)));
+  $("#finish-trade").addEventListener("click", () => {
+    $("#trade-form").elements.status.value = "closed"; updateTradeStage(); setDirty(true);
+    requestAnimationFrame(() => { $("#trade-outcome").scrollIntoView({ behavior: "smooth", block: "start" }); $("#trade-form").elements.pnl.focus(); });
+  });
   $("#calendar-prev").addEventListener("click", () => { state.calendarMonth.setMonth(state.calendarMonth.getMonth() - 1); state.selectedDay = null; loadCalendar().catch(showRequestError); });
   $("#calendar-next").addEventListener("click", () => { state.calendarMonth.setMonth(state.calendarMonth.getMonth() + 1); state.selectedDay = null; loadCalendar().catch(showRequestError); });
   $$('[data-scope-control="calendar"] button').forEach((button) => button.addEventListener("click", () => { state.calendarScope = button.dataset.scope; setScope("calendar", state.calendarScope); state.selectedDay = null; loadCalendar().catch(showRequestError); }));
