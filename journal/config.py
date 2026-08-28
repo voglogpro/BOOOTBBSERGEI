@@ -11,11 +11,21 @@ TOKEN_ENV_NAMES = ("BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "API_TOKEN", "TOKEN")
 
 
 def _bot_token() -> str:
+    environment = {name.upper(): value for name, value in os.environ.items()}
     for name in TOKEN_ENV_NAMES:
-        value = os.getenv(name, "").strip()
+        value = environment.get(name, "").strip()
         if value:
             return value
     return ""
+
+
+def _related_env_names() -> str:
+    names = sorted(
+        name
+        for name in os.environ
+        if any(marker in name.upper() for marker in ("BOT", "TOKEN", "TELEGRAM"))
+    )
+    return ", ".join(names) if names else "none"
 
 
 def _bool(value: str | None, default: bool = False) -> bool:
@@ -58,7 +68,8 @@ class Settings:
         if not dev_mode and not bot_token:
             names = ", ".join(TOKEN_ENV_NAMES)
             raise RuntimeError(
-                f"Telegram bot token is required. Set one of: {names}"
+                f"Telegram bot token is required. Set one of: {names}. "
+                f"Related environment variable names received from host: {_related_env_names()}"
             )
 
         database_value = os.getenv("DATABASE_PATH", "").strip()

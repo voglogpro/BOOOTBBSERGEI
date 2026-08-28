@@ -18,6 +18,10 @@ class ConfigTests(unittest.TestCase):
                 with patch.dict(os.environ, {name: "alias-token"}, clear=True):
                     self.assertEqual(_bot_token(), "alias-token")
 
+    def test_token_names_are_case_insensitive(self) -> None:
+        with patch.dict(os.environ, {"bot_token": "lowercase-token"}, clear=True):
+            self.assertEqual(_bot_token(), "lowercase-token")
+
 
 if __name__ == "__main__":
     unittest.main()
