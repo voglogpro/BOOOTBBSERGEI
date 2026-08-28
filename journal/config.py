@@ -7,6 +7,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+TOKEN_ENV_NAMES = ("BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "API_TOKEN", "TOKEN")
+
+
+def _bot_token() -> str:
+    for name in TOKEN_ENV_NAMES:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
@@ -43,9 +54,12 @@ class Settings:
     def from_env(cls) -> "Settings":
         load_dotenv()
         dev_mode = _bool(os.getenv("DEV_MODE"))
-        bot_token = os.getenv("BOT_TOKEN", "").strip()
+        bot_token = _bot_token()
         if not dev_mode and not bot_token:
-            raise RuntimeError("BOT_TOKEN is required when DEV_MODE is disabled")
+            names = ", ".join(TOKEN_ENV_NAMES)
+            raise RuntimeError(
+                f"Telegram bot token is required. Set one of: {names}"
+            )
 
         database_value = os.getenv("DATABASE_PATH", "").strip()
         if database_value:
@@ -76,4 +90,3 @@ class Settings:
             dev_user_name=os.getenv("DEV_USER_NAME", "Тестовый трейдер").strip()
             or "Тестовый трейдер",
         )
-

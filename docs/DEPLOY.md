@@ -19,6 +19,8 @@ MAX_AUTH_AGE_SECONDS=86400
 DEV_MODE=false
 ```
 
+BotHost обычно создаёт `BOT_TOKEN` автоматически из поля токена бота. Для совместимости приложение также принимает `TELEGRAM_BOT_TOKEN`, `API_TOKEN` и `TOKEN`.
+
 Для закрытого приложения можно указать только ваши два Telegram ID:
 
 ```dotenv
