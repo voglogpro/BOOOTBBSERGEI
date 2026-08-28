@@ -54,10 +54,12 @@ python -m unittest discover -s tests -v
 
 ```text
 journal/            backend, Telegram auth, SQLite и API
-static/             интерфейс Mini App
+static/             стили, клиентский JavaScript и иконка
 tests/              тесты подписи, базы и HTTP API
 docs/DEPLOY.md      настройка BotFather и хостинга
-main.py             точка запуска
+main.py             серверная точка запуска Python
+index.html          основная страница Mini App
+Dockerfile          однозначный запуск Python-контейнера
 ```
 
 ## Приватность

@@ -15,6 +15,9 @@ from journal.repository import JournalRepository, RepositoryError
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
+INDEX = ROOT / "index.html"
+
+
 @web.middleware
 async def error_middleware(request: web.Request, handler: Any) -> web.StreamResponse:
     try:
@@ -78,7 +81,7 @@ async def telegram_auth_middleware(
 
 
 async def index(_: web.Request) -> web.FileResponse:
-    return web.FileResponse(STATIC / "index.html")
+    return web.FileResponse(INDEX)
 
 
 async def startup(app: web.Application) -> None:

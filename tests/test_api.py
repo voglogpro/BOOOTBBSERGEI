@@ -54,7 +54,13 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get("/health")
         self.assertEqual(response.status, 200)
 
+    async def test_index_is_served_from_project_root(self) -> None:
+        response = await self.client.get("/")
+        self.assertEqual(response.status, 200)
+        html = await response.text()
+        self.assertIn("/static/client.js", html)
+        self.assertNotIn("/static/app.js", html)
+
 
 if __name__ == "__main__":
     unittest.main()
-
