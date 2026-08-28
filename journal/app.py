@@ -99,7 +99,7 @@ async def startup(app: web.Application) -> None:
 
 def create_app(settings: Settings) -> web.Application:
     app = web.Application(
-        middlewares=[error_middleware, security_headers_middleware, telegram_auth_middleware],
+        middlewares=[security_headers_middleware, error_middleware, telegram_auth_middleware],
         client_max_size=64 * 1024,
     )
     app[SETTINGS_KEY] = settings

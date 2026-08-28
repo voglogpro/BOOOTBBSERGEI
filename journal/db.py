@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS account_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    account_name TEXT NOT NULL DEFAULT 'Funded account',
+    balance REAL NOT NULL DEFAULT 50000,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    profit_target_pct REAL NOT NULL DEFAULT 10,
+    daily_loss_limit_pct REAL NOT NULL DEFAULT 3,
+    max_loss_limit_pct REAL NOT NULL DEFAULT 6,
+    risk_per_trade_pct REAL NOT NULL DEFAULT 0.5,
+    max_trades_day INTEGER NOT NULL DEFAULT 3,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS circles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -45,7 +58,10 @@ CREATE TABLE IF NOT EXISTS moods (
     discipline INTEGER NOT NULL CHECK (discipline BETWEEN 1 AND 5),
     emotion TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
+    focus TEXT NOT NULL DEFAULT '',
+    lesson TEXT NOT NULL DEFAULT '',
     visibility TEXT NOT NULL DEFAULT 'team' CHECK (visibility IN ('private', 'team')),
+    circle_id INTEGER REFERENCES circles(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, entry_date)
@@ -57,8 +73,13 @@ CREATE TABLE IF NOT EXISTS trades (
     traded_at TEXT NOT NULL,
     symbol TEXT NOT NULL,
     direction TEXT NOT NULL CHECK (direction IN ('BUY', 'SELL')),
+    status TEXT NOT NULL DEFAULT 'closed',
+    client_entry_id TEXT NOT NULL DEFAULT '',
     timeframe TEXT NOT NULL DEFAULT '',
+    session TEXT NOT NULL DEFAULT '',
     setup TEXT NOT NULL DEFAULT '',
+    grade TEXT NOT NULL DEFAULT '',
+    market_context TEXT NOT NULL DEFAULT '',
     entry_price REAL,
     stop_loss REAL,
     take_profit REAL,
@@ -73,6 +94,7 @@ CREATE TABLE IF NOT EXISTS trades (
     note TEXT NOT NULL DEFAULT '',
     screenshot_url TEXT NOT NULL DEFAULT '',
     visibility TEXT NOT NULL DEFAULT 'team' CHECK (visibility IN ('private', 'team')),
+    circle_id INTEGER REFERENCES circles(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -81,6 +103,34 @@ CREATE INDEX IF NOT EXISTS idx_moods_user_date ON moods(user_id, entry_date);
 CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades(user_id, traded_at);
 CREATE INDEX IF NOT EXISTS idx_circle_members_circle ON circle_members(circle_id);
 """
+
+
+MIGRATION_COLUMNS = {
+    "moods": {
+        "focus": "TEXT NOT NULL DEFAULT ''",
+        "lesson": "TEXT NOT NULL DEFAULT ''",
+        "circle_id": "INTEGER",
+    },
+    "trades": {
+        "status": "TEXT NOT NULL DEFAULT 'closed'",
+        "client_entry_id": "TEXT NOT NULL DEFAULT ''",
+        "session": "TEXT NOT NULL DEFAULT ''",
+        "grade": "TEXT NOT NULL DEFAULT ''",
+        "market_context": "TEXT NOT NULL DEFAULT ''",
+        "circle_id": "INTEGER",
+    },
+}
+
+
+async def _migrate_columns(connection: aiosqlite.Connection) -> None:
+    for table, columns in MIGRATION_COLUMNS.items():
+        cursor = await connection.execute(f"PRAGMA table_info({table})")
+        existing = {str(row[1]) for row in await cursor.fetchall()}
+        for name, definition in columns.items():
+            if name not in existing:
+                await connection.execute(
+                    f"ALTER TABLE {table} ADD COLUMN {name} {definition}"
+                )
 
 
 async def connect(path: Path) -> aiosqlite.Connection:
@@ -97,7 +147,17 @@ async def initialize_database(path: Path) -> None:
     try:
         await connection.execute("PRAGMA journal_mode = WAL")
         await connection.executescript(SCHEMA)
+        await _migrate_columns(connection)
+        await connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_moods_circle_date ON moods(circle_id, entry_date)"
+        )
+        await connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trades_circle_date ON trades(circle_id, traded_at)"
+        )
+        await connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_trades_client_entry "
+            "ON trades(user_id, client_entry_id) WHERE client_entry_id != ''"
+        )
         await connection.commit()
     finally:
         await connection.close()
-

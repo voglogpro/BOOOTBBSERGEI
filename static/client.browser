@@ -2,20 +2,15 @@
 
 const tg = window.Telegram?.WebApp;
 const state = {
-  user: null,
-  circle: null,
-  bootstrap: null,
-  trades: [],
+  user: null, circle: null, settings: null, bootstrap: null, trades: [],
   calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  calendarScope: "me",
-  statsScope: "me",
-  calendarDays: new Map(),
-  selectedDay: null,
+  calendarScope: "me", statsScope: "me", calendarDays: new Map(),
+  selectedDay: null, dayTrades: [], calendarRequest: 0, dayRequest: 0,
+  statsRequest: 0, dirty: false, currentView: "today",
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const moodEmoji = ["", "😣", "😕", "😐", "🙂", "🔥"];
 
 function todayISO() {
   const now = new Date();
@@ -27,6 +22,10 @@ function localDateTimeValue(date = new Date()) {
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
 }
 
+function entryId() {
+  return window.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
@@ -35,8 +34,11 @@ function escapeHtml(value) {
 
 function formatMoney(value, signed = false) {
   const amount = Number(value || 0);
-  const sign = signed && amount > 0 ? "+" : "";
-  return `${sign}${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(amount)} $`;
+  const currency = state.settings?.currency || "USD";
+  const formatted = new Intl.NumberFormat("ru-RU", {
+    style: "currency", currency, maximumFractionDigits: 2,
+  }).format(amount);
+  return signed && amount > 0 ? `+${formatted}` : formatted;
 }
 
 function formatDate(value, options = { day: "numeric", month: "long" }) {
@@ -45,15 +47,28 @@ function formatDate(value, options = { day: "numeric", month: "long" }) {
   return new Intl.DateTimeFormat("ru-RU", options).format(new Date(source));
 }
 
+function tradesLabel(value) {
+  const count = Number(value || 0);
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const word = mod10 === 1 && mod100 !== 11
+    ? "сделка"
+    : mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)
+      ? "сделки"
+      : "сделок";
+  return `${count} ${word}`;
+}
+
 function displayName(user) {
-  const full = [user?.first_name, user?.last_name].filter(Boolean).join(" ");
-  return full || user?.username || "Трейдер";
+  return [user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.username || "Трейдер";
 }
 
 function haptic(type = "light") {
-  try {
-    if (tg?.isVersionAtLeast?.("6.1")) tg.HapticFeedback?.impactOccurred(type);
-  } catch (_) { /* optional API */ }
+  try { if (tg?.isVersionAtLeast?.("6.1")) tg.HapticFeedback?.impactOccurred(type); } catch (_) { /* optional */ }
+}
+
+function notifyError() {
+  try { if (tg?.isVersionAtLeast?.("6.1")) tg.HapticFeedback?.notificationOccurred("error"); } catch (_) { /* optional */ }
 }
 
 function toast(message, timeout = 2600) {
@@ -74,6 +89,24 @@ async function api(path, options = {}) {
   return payload;
 }
 
+async function pending(button, task) {
+  if (button?.disabled) return;
+  const label = button?.textContent;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  try { return await task(); }
+  finally {
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); if (label) button.textContent = label; }
+  }
+}
+
+function setDirty(value) {
+  state.dirty = value;
+  try {
+    if (!tg?.isVersionAtLeast?.("6.2")) return;
+    if (value) tg.enableClosingConfirmation(); else tg.disableClosingConfirmation();
+  } catch (_) { /* browser preview */ }
+}
+
 function setLoading(loading) {
   $("#loading").classList.toggle("hidden", !loading);
   $("#app").classList.toggle("hidden", loading);
@@ -89,57 +122,53 @@ function showFatal(error) {
 function applyTelegramTheme() {
   if (!tg) return;
   try {
-    tg.ready();
-    tg.expand();
-    if (tg.isVersionAtLeast?.("6.1")) {
-      tg.setHeaderColor("secondary_bg_color");
-      tg.setBackgroundColor("bg_color");
-    }
-    if (tg.isVersionAtLeast?.("6.2")) tg.enableClosingConfirmation();
+    tg.ready(); tg.expand();
+    if (tg.isVersionAtLeast?.("6.1")) { tg.setHeaderColor("bg_color"); tg.setBackgroundColor("bg_color"); }
   } catch (_) { /* browser preview */ }
 }
 
 async function loadBootstrap() {
-  const data = await api("/api/bootstrap");
-  state.bootstrap = data;
-  state.user = data.user;
-  state.circle = data.circle;
-  state.trades = data.today_trades || [];
-  renderHeader();
-  renderToday();
-  populateMood(data.today_mood);
-  renderTeam();
+  const data = await api(`/api/bootstrap?date=${todayISO()}`);
+  state.bootstrap = data; state.user = data.user; state.circle = data.circle;
+  state.settings = data.settings; state.trades = data.today_trades || [];
+  renderHeader(); renderToday(); populateMood(data.today_mood); populateSettings(); renderTeam();
+  if (!data.today_mood && !data.circle) $("#mood-form").elements.visibility.value = "private";
 }
 
 function renderHeader() {
   const name = displayName(state.user).split(" ")[0];
-  $("#greeting").textContent = `Привет, ${name}`;
+  const hour = new Date().getHours();
+  $("#greeting").textContent = `${hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер"}, ${name}`;
   $("#today-label").textContent = formatDate(todayISO(), { weekday: "long", day: "numeric", month: "long" });
+  $("#account-caption").textContent = state.settings?.account_name || "Мой счёт";
+  $("#challenge-badge").textContent = `Цель ${Number(state.settings?.profit_target_pct || 0)}%`;
   const avatar = $("#user-avatar");
   avatar.textContent = name.slice(0, 1).toUpperCase();
   if (state.user.photo_url) avatar.style.backgroundImage = `url(${JSON.stringify(state.user.photo_url).slice(1, -1)})`;
 }
 
-function stabilityCaption(score) {
-  if (score >= 80) return "Решения устойчивы. Сохраняй темп.";
-  if (score >= 60) return "Хорошая база. Следи за повторяемостью.";
-  if (score >= 35) return "Стабильность растёт вместе с честными записями.";
-  return "Начни с честной отметки состояния.";
-}
-
 function renderToday() {
-  const stats = state.bootstrap.stats || {};
+  const settings = state.settings || {};
+  const stats = state.bootstrap?.stats || {};
   const pnl = state.trades.reduce((sum, trade) => sum + Number(trade.pnl || 0), 0);
+  const risk = state.trades.reduce((sum, trade) => sum + Number(trade.risk_amount || 0), 0);
   const planned = state.trades.filter((trade) => Number(trade.plan_followed) === 1).length;
-  const planRate = state.trades.length ? Math.round(planned / state.trades.length * 100) : 0;
-  $("#stability-score").textContent = stats.stability_score || 0;
-  $("#stability-caption").textContent = stabilityCaption(stats.stability_score || 0);
-  $("#streak-value").textContent = stats.streak || 0;
-  $("#today-trades-count").textContent = state.trades.length;
+  const planRate = state.trades.length ? Math.round(planned / state.trades.length * 100) : null;
+  const dailyLimit = Number(settings.balance || 0) * Number(settings.daily_loss_limit_pct || 0) / 100;
+  const lossUsed = Math.max(-pnl, 0);
+  const remaining = Math.max(dailyLimit - lossUsed, 0);
+  const usedPercent = dailyLimit ? Math.min(lossUsed / dailyLimit * 100, 100) : 0;
+
   $("#today-pnl").textContent = formatMoney(pnl, true);
-  $("#today-pnl").className = pnl > 0 ? "positive" : pnl < 0 ? "negative" : "";
-  $("#plan-rate").textContent = `${planRate}%`;
-  renderTradeList();
+  $("#today-pnl").className = `money ${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}`;
+  $("#streak-value").textContent = stats.streak || 0;
+  $("#risk-used").textContent = formatMoney(risk);
+  $("#today-trades-count").textContent = state.trades.length;
+  $("#plan-rate").textContent = planRate === null ? "—" : `${planRate}%`;
+  $("#daily-limit-copy").textContent = dailyLimit ? `${formatMoney(remaining)} из ${formatMoney(dailyLimit)}` : "Настройте счёт";
+  $("#daily-limit-bar").style.width = `${usedPercent}%`;
+  $("#daily-limit-bar").style.background = usedPercent >= 80 ? "var(--negative)" : usedPercent >= 50 ? "var(--warning)" : "#bce4d9";
+  renderTradeList($("#today-trades"), state.trades, true);
 }
 
 function populateMood(mood) {
@@ -148,265 +177,289 @@ function populateMood(mood) {
   const radio = $(`input[name="mood"][value="${mood.mood}"]`, form);
   if (radio) radio.checked = true;
   for (const key of ["energy", "confidence", "discipline"]) {
-    form.elements[key].value = mood[key];
-    $(`#${key}-output`).value = mood[key];
+    form.elements[key].value = mood[key]; $(`#${key}-output`).value = mood[key];
   }
-  form.elements.emotion.value = mood.emotion || "";
-  form.elements.note.value = mood.note || "";
-  form.elements.visibility.checked = mood.visibility === "team";
+  for (const key of ["emotion", "note", "focus", "lesson"]) form.elements[key].value = mood[key] || "";
+  form.elements.visibility.value = mood.visibility || "team";
   $("#mood-saved").classList.remove("hidden");
 }
 
-function renderTradeList() {
-  const container = $("#today-trades");
-  if (!state.trades.length) {
-    container.innerHTML = '<div class="empty-state">Сделок пока нет. Хороший день может быть и без входа.</div>';
-    return;
+function populateSettings() {
+  const form = $("#settings-form");
+  if (!form || !state.settings) return;
+  for (const key of ["account_name", "balance", "currency", "profit_target_pct", "daily_loss_limit_pct", "max_loss_limit_pct", "risk_per_trade_pct", "max_trades_day"]) {
+    form.elements[key].value = state.settings[key] ?? "";
   }
-  container.innerHTML = state.trades.map((trade) => {
-    const own = Number(trade.user_id) === Number(state.user.id);
-    const pnl = Number(trade.pnl || 0);
-    const author = own ? "Вы" : escapeHtml(displayName(trade));
-    return `<article class="trade-item" data-trade-id="${trade.id}" data-own="${own}">
-      <div class="trade-direction ${trade.direction.toLowerCase()}">${trade.direction === "BUY" ? "↑" : "↓"}</div>
-      <div class="trade-main"><strong>${escapeHtml(trade.symbol)} · ${escapeHtml(trade.timeframe || "—")}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</small></div>
-      <div class="trade-result ${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${formatMoney(pnl, true)}</div>
-    </article>`;
-  }).join("");
+}
+
+function tradeStatus(trade) {
+  return ({ planned: "План", open: "Открыта", cancelled: "Отменена", closed: "Закрыта" })[trade.status] || "Закрыта";
+}
+
+function tradeRow(trade, animate = true) {
+  const own = Number(trade.user_id) === Number(state.user.id);
+  const pnl = Number(trade.pnl || 0);
+  const author = own ? "Вы" : escapeHtml(displayName(trade));
+  const result = trade.status === "closed" ? formatMoney(pnl, true) : tradeStatus(trade);
+  return `<button class="trade-item${animate ? "" : " no-animate"}" data-trade-id="${trade.id}" data-own="${own}" type="button">
+    <span class="trade-side ${String(trade.direction).toLowerCase()}">${trade.direction === "BUY" ? "BUY" : "SELL"}</span>
+    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small></span>
+    <span class="trade-result ${pnl > 0 && trade.status === "closed" ? "positive" : pnl < 0 && trade.status === "closed" ? "negative" : ""}">${result}<small>${trade.r_multiple == null ? tradeStatus(trade) : `${Number(trade.r_multiple).toFixed(2)}R`}</small></span>
+  </button>`;
+}
+
+function renderTradeList(container, trades, editable = false) {
+  if (!trades.length) { container.innerHTML = '<div class="empty-state">Записей пока нет. День без сделки тоже часть плана.</div>'; return; }
+  container.innerHTML = trades.map((trade) => tradeRow(trade)).join("");
   $$(".trade-item", container).forEach((item) => item.addEventListener("click", () => {
-    if (item.dataset.own !== "true") return toast("Сделку друга можно только просматривать");
-    const trade = state.trades.find((candidate) => String(candidate.id) === item.dataset.tradeId);
-    if (trade) openTradeDialog(trade);
+    const trade = trades.find((candidate) => String(candidate.id) === item.dataset.tradeId);
+    if (trade) openTradeDialog(trade, !(editable && item.dataset.own === "true"));
   }));
 }
 
 async function saveMood(event) {
   event.preventDefault();
-  const form = event.currentTarget;
-  const data = new FormData(form);
-  const payload = {
-    mood: Number(data.get("mood")), energy: Number(data.get("energy")),
-    confidence: Number(data.get("confidence")), discipline: Number(data.get("discipline")),
-    emotion: data.get("emotion"), note: data.get("note"),
-    visibility: form.elements.visibility.checked ? "team" : "private",
-  };
-  await api(`/api/moods/${todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
-  $("#mood-saved").classList.remove("hidden");
-  haptic("light");
-  toast("Состояние сохранено");
-  await loadBootstrap();
+  const form = event.currentTarget; const button = $("button[type='submit']", form);
+  await pending(button, async () => {
+    const data = new FormData(form);
+    const payload = {
+      mood: Number(data.get("mood")), energy: Number(data.get("energy")), confidence: Number(data.get("confidence")), discipline: Number(data.get("discipline")),
+      emotion: data.get("emotion"), note: data.get("note"), focus: data.get("focus"), lesson: data.get("lesson"), visibility: data.get("visibility"),
+    };
+    await api(`/api/moods/${todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
+    setDirty(false); haptic(); toast("Состояние сохранено"); await loadBootstrap();
+  });
 }
 
-function openTradeDialog(trade = null) {
-  const dialog = $("#trade-dialog");
+function setTradeReadOnly(readOnly) {
   const form = $("#trade-form");
-  form.reset();
-  form.elements.traded_at.value = localDateTimeValue();
-  form.elements.symbol.value = "XAUUSD";
-  form.elements.timeframe.value = "M15";
-  form.elements.plan_followed.checked = true;
-  form.elements.visibility.checked = true;
-  form.elements.trade_id.value = "";
-  $("#delete-trade").classList.add("hidden");
+  form.classList.toggle("trade-form-readonly", readOnly);
+  $$("input:not([type='hidden']), select, textarea", form).forEach((field) => { field.disabled = readOnly; });
+  $("#delete-trade").classList.toggle("hidden", readOnly || !form.elements.trade_id.value);
+  $("#save-trade").classList.toggle("hidden", readOnly);
+  $("#trade-dialog-kicker").textContent = readOnly ? "Просмотр записи" : "Журнал сделки";
+}
+
+function openTradeDialog(trade = null, readOnly = false) {
+  const dialog = $("#trade-dialog"); const form = $("#trade-form");
+  form.reset(); setTradeReadOnly(false);
+  form.elements.traded_at.value = localDateTimeValue(); form.elements.symbol.value = "XAUUSD";
+  form.elements.timeframe.value = "M15"; form.elements.status.value = "closed";
+  form.elements.plan_followed.value = "true"; form.elements.visibility.value = state.circle ? "team" : "private";
+  form.elements.trade_id.value = ""; form.elements.client_entry_id.value = entryId();
+  $("#trade-dialog-title").textContent = "Новая сделка"; $("#delete-trade").classList.add("hidden");
   if (trade) {
-    const fields = ["symbol", "direction", "timeframe", "setup", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url"];
-    form.elements.trade_id.value = trade.id;
+    const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
+    form.elements.trade_id.value = trade.id; form.elements.client_entry_id.value = trade.client_entry_id || "";
     form.elements.traded_at.value = String(trade.traded_at).slice(0, 16);
     for (const field of fields) form.elements[field].value = trade[field] ?? "";
-    form.elements.plan_followed.checked = Boolean(Number(trade.plan_followed));
-    form.elements.visibility.checked = trade.visibility === "team";
+    form.elements.plan_followed.value = Number(trade.plan_followed) === 1 ? "true" : "false";
+    $("#trade-dialog-title").textContent = `${trade.symbol} · ${tradeStatus(trade)}`;
     $("#delete-trade").classList.remove("hidden");
   }
-  dialog.showModal();
+  setTradeReadOnly(readOnly); updateRPreview(); setDirty(false); dialog.showModal();
 }
 
 function tradePayload(form) {
-  const data = new FormData(form);
-  const optionalNumbers = ["entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "r_multiple"];
-  const payload = Object.fromEntries(data.entries());
+  const data = new FormData(form); const payload = Object.fromEntries(data.entries());
   delete payload.trade_id;
-  for (const key of optionalNumbers) payload[key] = payload[key] === "" ? null : Number(payload[key]);
-  payload.pnl = Number(payload.pnl);
-  payload.plan_followed = form.elements.plan_followed.checked;
-  payload.visibility = form.elements.visibility.checked ? "team" : "private";
+  for (const key of ["entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl"]) payload[key] = payload[key] === "" ? null : Number(payload[key]);
+  payload.plan_followed = payload.plan_followed === "true";
   return payload;
+}
+
+function updateRPreview() {
+  const form = $("#trade-form"); const risk = Number(form.elements.risk_amount.value); const pnl = Number(form.elements.pnl.value);
+  $("#r-preview").textContent = risk > 0 && form.elements.pnl.value !== "" ? `Расчётный результат: ${(pnl / risk).toFixed(2)}R` : "R будет рассчитан из результата и риска.";
+  form.elements.pnl.required = form.elements.status.value === "closed";
 }
 
 async function saveTrade(event) {
   event.preventDefault();
-  const form = event.currentTarget;
-  const id = form.elements.trade_id.value;
-  const path = id ? `/api/trades/${id}` : "/api/trades";
-  await api(path, { method: id ? "PUT" : "POST", body: JSON.stringify(tradePayload(form)) });
-  $("#trade-dialog").close();
-  haptic("medium");
-  toast(id ? "Сделка обновлена" : "Сделка добавлена");
-  await loadBootstrap();
-  if ($("#view-calendar").classList.contains("active")) await loadCalendar();
+  const form = event.currentTarget; const button = $("#save-trade"); const id = form.elements.trade_id.value;
+  await pending(button, async () => {
+    await api(id ? `/api/trades/${id}` : "/api/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(tradePayload(form)) });
+    setDirty(false); $("#trade-dialog").close(); haptic("medium"); toast(id ? "Сделка обновлена" : "Сделка записана");
+    await loadBootstrap();
+    if (state.currentView === "calendar") { await loadCalendar(); if (state.selectedDay) await selectDay(state.selectedDay); }
+  });
+}
+
+async function askConfirm(message) {
+  return new Promise((resolve) => { if (tg?.showConfirm) tg.showConfirm(message, resolve); else resolve(window.confirm(message)); });
 }
 
 async function confirmDelete() {
   const id = $("#trade-form").elements.trade_id.value;
-  if (!id) return;
-  const confirmed = await new Promise((resolve) => {
-    if (tg?.showConfirm) tg.showConfirm("Удалить эту сделку из журнала?", resolve);
-    else resolve(window.confirm("Удалить эту сделку из журнала?"));
+  if (!id || !(await askConfirm("Удалить эту сделку из журнала?"))) return;
+  await pending($("#delete-trade"), async () => {
+    await api(`/api/trades/${id}`, { method: "DELETE" }); setDirty(false); $("#trade-dialog").close(); toast("Сделка удалена"); await loadBootstrap();
+    if (state.currentView === "calendar") await loadCalendar();
   });
-  if (!confirmed) return;
-  await api(`/api/trades/${id}`, { method: "DELETE" });
-  $("#trade-dialog").close();
-  toast("Сделка удалена");
-  await loadBootstrap();
 }
 
 function switchView(name) {
+  if (name === state.currentView) return;
+  state.currentView = name;
   $$(".view").forEach((view) => view.classList.toggle("active", view.id === `view-${name}`));
-  $$(".bottom-nav button").forEach((button) => button.classList.toggle("active", button.dataset.view === name));
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  $$(".bottom-nav button").forEach((button) => {
+    const active = button.dataset.view === name; button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
+  });
+  window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  haptic();
   if (name === "calendar") loadCalendar().catch(showRequestError);
   if (name === "stats") loadStats().catch(showRequestError);
-  if (name === "team") renderTeam();
+  if (name === "profile") { populateSettings(); renderTeam(); }
 }
 
 async function loadCalendar() {
+  const requestId = ++state.calendarRequest;
   const month = `${state.calendarMonth.getFullYear()}-${String(state.calendarMonth.getMonth() + 1).padStart(2, "0")}`;
   const data = await api(`/api/calendar?month=${month}&scope=${state.calendarScope}`);
-  state.calendarDays = new Map(data.days.map((item) => [item.day, item]));
-  renderCalendar();
+  if (requestId !== state.calendarRequest) return;
+  state.calendarDays = new Map(data.days.map((item) => [item.day, item])); renderCalendar();
 }
 
 function renderCalendar() {
-  const year = state.calendarMonth.getFullYear();
-  const month = state.calendarMonth.getMonth();
+  const year = state.calendarMonth.getFullYear(); const month = state.calendarMonth.getMonth();
   $("#calendar-title").textContent = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(state.calendarMonth);
-  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
-  const daysCount = new Date(year, month + 1, 0).getDate();
-  const cells = [];
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; const daysCount = new Date(year, month + 1, 0).getDate(); const cells = [];
   for (let i = 0; i < firstWeekday; i += 1) cells.push('<div class="calendar-day" aria-hidden="true"></div>');
   for (let day = 1; day <= daysCount; day += 1) {
-    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const info = state.calendarDays.get(key);
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`; const info = state.calendarDays.get(key); const pnl = Number(info?.pnl || 0);
     const classes = ["calendar-day", info ? "has-data" : "", key === todayISO() ? "today" : "", key === state.selectedDay ? "selected" : ""].filter(Boolean).join(" ");
-    const pnl = info ? Number(info.pnl || 0) : 0;
-    cells.push(`<button class="${classes}" data-day="${key}" type="button"><span>${day}</span>${info?.mood ? `<span class="day-mood">${moodEmoji[Math.round(info.mood)]}</span>` : "<span></span>"}${info?.trades ? `<span class="day-pnl ${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${pnl > 0 ? "+" : ""}${Math.round(pnl)}$</span>` : "<span></span>"}</button>`);
+    const aria = `${formatDate(key, { day: "numeric", month: "long" })}. ${tradesLabel(info?.trades)}. Результат ${formatMoney(pnl)}`;
+    cells.push(`<button class="${classes}" data-day="${key}" type="button" aria-label="${escapeHtml(aria)}"><span>${day}</span><i class="discipline-dot ${Number(info?.discipline || 0) >= 4 ? "good" : ""}"></i>${info?.trades ? `<span class="day-pnl ${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${pnl > 0 ? "+" : ""}${Math.round(pnl)}</span>` : "<span></span>"}</button>`);
   }
   $("#calendar-grid").innerHTML = cells.join("");
-  $$(".calendar-day[data-day]").forEach((button) => button.addEventListener("click", () => selectDay(button.dataset.day)));
+  $$(".calendar-day[data-day]").forEach((button) => button.addEventListener("click", () => selectDay(button.dataset.day).catch(showRequestError)));
 }
 
 async function selectDay(day) {
-  state.selectedDay = day;
-  renderCalendar();
+  const requestId = ++state.dayRequest; state.selectedDay = day; renderCalendar();
   const info = state.calendarDays.get(day) || { trades: 0, pnl: 0 };
   const payload = await api(`/api/trades?from=${day}&to=${day}&scope=${state.calendarScope}`);
-  const trades = payload.trades || [];
-  const tradeRows = trades.length ? trades.map((trade) => `<div class="trade-item"><div class="trade-direction ${trade.direction.toLowerCase()}">${trade.direction === "BUY" ? "↑" : "↓"}</div><div class="trade-main"><strong>${escapeHtml(trade.symbol)}</strong><small>${escapeHtml(displayName(trade))} · ${escapeHtml(trade.setup || "Без описания")}</small></div><div class="trade-result ${Number(trade.pnl) > 0 ? "positive" : Number(trade.pnl) < 0 ? "negative" : ""}">${formatMoney(trade.pnl, true)}</div></div>`).join("") : '<p class="muted">В этот день сделки не записаны.</p>';
-  $("#day-details").innerHTML = `<h3>${formatDate(day, { day: "numeric", month: "long", weekday: "long" })}</h3><div class="day-summary"><span>Сделок<strong>${info.trades || 0}</strong></span><span>Итог<strong class="${Number(info.pnl) > 0 ? "positive" : Number(info.pnl) < 0 ? "negative" : ""}">${formatMoney(info.pnl, true)}</strong></span>${info.mood ? `<span>Настроение<strong>${moodEmoji[Math.round(info.mood)]}</strong></span>` : ""}</div><div class="trade-list day-trades">${tradeRows}</div>`;
+  if (requestId !== state.dayRequest || state.selectedDay !== day) return;
+  state.dayTrades = payload.trades || [];
+  const container = $("#day-details");
+  container.innerHTML = `<h2>${formatDate(day, { day: "numeric", month: "long", weekday: "long" })}</h2><div class="day-summary"><span>Сделок<strong>${info.trades || 0}</strong></span><span>Итог<strong class="${Number(info.pnl) > 0 ? "positive" : Number(info.pnl) < 0 ? "negative" : ""}">${formatMoney(info.pnl, true)}</strong></span><span>Дисциплина<strong>${info.discipline ? `${info.discipline}/5` : "—"}</strong></span></div><div class="trade-list"></div>`;
+  renderTradeList($(".trade-list", container), state.dayTrades, true);
 }
 
 async function loadStats() {
-  const days = $("#stats-period").value;
-  const data = await api(`/api/stats?days=${days}&scope=${state.statsScope}`);
+  const requestId = ++state.statsRequest; const days = $("#stats-period").value;
+  const data = await api(`/api/stats?days=${days}&end=${todayISO()}&scope=${state.statsScope}`);
+  if (requestId !== state.statsRequest) return;
   const stats = data.stats;
-  $("#stats-pnl").textContent = formatMoney(stats.pnl, true);
-  $("#stats-pnl").className = Number(stats.pnl) > 0 ? "positive" : Number(stats.pnl) < 0 ? "negative" : "";
-  $("#stats-trades").textContent = `${stats.trades || 0} сделок`;
-  $("#stats-winrate").textContent = `${stats.win_rate || 0}%`;
-  $("#stats-wl").textContent = `${stats.wins || 0} / ${stats.losses || 0}`;
-  $("#stats-plan").textContent = `${stats.plan_rate || 0}%`;
-  $("#stats-r").textContent = stats.avg_r ?? "—";
-  $("#stats-stability").textContent = stats.stability_score || 0;
-  $("#stats-discipline").textContent = `${stats.avg_discipline || 0}/5`;
-  $("#stability-bar").style.width = `${Math.min(stats.stability_score || 0, 100)}%`;
-  $("#discipline-bar").style.width = `${Math.min(Number(stats.avg_discipline || 0) / 5 * 100, 100)}%`;
-  renderInsight(stats);
+  $("#stats-pnl").textContent = formatMoney(stats.pnl, true); $("#stats-pnl").className = `money ${Number(stats.pnl) > 0 ? "positive" : Number(stats.pnl) < 0 ? "negative" : ""}`;
+  $("#stats-trades").textContent = tradesLabel(stats.trades); $("#stats-winrate").textContent = `${stats.win_rate || 0}%`; $("#stats-wl").textContent = `${stats.wins || 0} / ${stats.losses || 0}`;
+  $("#stats-pf").textContent = stats.profit_factor == null ? "—" : Number(stats.profit_factor).toFixed(2); $("#stats-r").textContent = stats.avg_r == null ? "—" : `${Number(stats.avg_r).toFixed(2)}R`;
+  $("#stats-expectancy").textContent = formatMoney(stats.expectancy, true); $("#stats-drawdown").textContent = formatMoney(-Math.abs(Number(stats.max_drawdown || 0)));
+  $("#stats-plan").textContent = `${stats.plan_rate || 0}% по плану`;
+  renderEquity(stats.equity_curve || []); renderObservation(stats); renderBreakdown($("#setup-breakdown"), stats.setups, "pnl"); renderBreakdown($("#session-breakdown"), stats.sessions, "pnl"); renderBreakdown($("#mistake-breakdown"), stats.mistakes, "trades");
 }
 
-function renderInsight(stats) {
-  let title = "Сначала собери данные";
-  let copy = "После нескольких записей здесь появится подсказка по стабильности.";
-  if ((stats.trades || 0) >= 3) {
-    if ((stats.plan_rate || 0) < 70) { title = "Результат уступает процессу"; copy = "Сделок по плану меньше 70%. Снизь частоту и запиши условие отмены входа."; }
-    else if ((stats.avg_discipline || 0) < 3.5) { title = "Проверь состояние до входа"; copy = "Дисциплина проседает. Перед каждой сделкой оцени эмоцию и готовность принять стоп."; }
-    else if ((stats.stability_score || 0) >= 75) { title = "Стабильный процесс"; copy = "Ты регулярно ведёшь журнал и следуешь плану. Не увеличивай риск из-за короткой серии побед."; }
-    else { title = "Продолжай одинаковый ритуал"; copy = "Записывай состояние, причину входа и результат. Через несколько недель закономерности станут заметнее."; }
+function renderEquity(points) {
+  const box = $("#equity-chart");
+  if (points.length < 2) { box.innerHTML = '<div class="chart-empty">Нужно минимум два торговых дня.</div>'; return; }
+  const values = points.map((item) => Number(item.equity)); const min = Math.min(0, ...values); const max = Math.max(0, ...values); const range = max - min || 1;
+  const coords = values.map((value, index) => [index / (values.length - 1) * 100, 92 - (value - min) / range * 78]);
+  const line = coords.map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+  const area = `${line} L100,100 L0,100 Z`;
+  box.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="${area}"/><path class="line" d="${line}"/></svg>`;
+}
+
+function renderObservation(stats) {
+  let title = "Недостаточно записей"; let copy = "После трёх сделок здесь появится конкретное наблюдение.";
+  if (Number(stats.trades) >= 3) {
+    const topMistake = stats.mistakes?.[0]; const topSetup = stats.setups?.filter((item) => Number(item.pnl) > 0).sort((a, b) => Number(b.pnl) - Number(a.pnl))[0];
+    if (Number(stats.plan_rate) < 70) { title = `${stats.plan_rate}% сделок выполнено по плану`; copy = "Это самый прямой участок для улучшения процесса на следующей неделе."; }
+    else if (topMistake && Number(topMistake.trades) >= 2) { title = `Повторяется: ${topMistake.label}`; copy = `Ошибка отмечена в ${tradesLabel(topMistake.trades)} за выбранный период.`; }
+    else if (topSetup) { title = `Лучший сетап: ${topSetup.label}`; copy = `${tradesLabel(topSetup.trades)}, результат ${formatMoney(topSetup.pnl, true)}, винрейт ${topSetup.win_rate}%.`; }
+    else { title = `${stats.plan_rate}% сделок по плану`; copy = `Средняя дисциплина ${stats.avg_discipline || 0}/5, записано дней: ${stats.journal_days || 0}.`; }
   }
-  $("#stats-insight").textContent = title;
-  $("#stats-insight-copy").textContent = copy;
+  $("#stats-observation").textContent = title; $("#stats-observation-copy").textContent = copy;
+}
+
+function renderBreakdown(container, rows = [], mode = "pnl") {
+  if (!rows?.length) { container.innerHTML = '<div class="breakdown-empty">Пока нет данных.</div>'; return; }
+  container.innerHTML = rows.map((row) => `<div class="breakdown-row"><div><span>${escapeHtml(row.label)}</span><small>${tradesLabel(row.trades)} · ${row.win_rate}% побед</small></div><strong class="${Number(row.pnl) > 0 ? "positive" : Number(row.pnl) < 0 ? "negative" : ""}">${mode === "trades" ? row.trades : formatMoney(row.pnl, true)}</strong></div>`).join("");
+}
+
+async function saveSettings(event) {
+  event.preventDefault(); const form = event.currentTarget; const button = $("button[type='submit']", form);
+  await pending(button, async () => {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    for (const key of ["balance", "profit_target_pct", "daily_loss_limit_pct", "max_loss_limit_pct", "risk_per_trade_pct", "max_trades_day"]) payload[key] = Number(payload[key]);
+    const data = await api("/api/settings", { method: "PUT", body: JSON.stringify(payload) }); state.settings = data.settings; state.bootstrap.settings = data.settings; setDirty(false); renderHeader(); renderToday(); toast("Настройки счёта сохранены"); haptic();
+  });
 }
 
 function renderTeam() {
-  const active = Boolean(state.circle);
-  $("#team-empty").classList.toggle("hidden", active);
-  $("#team-active").classList.toggle("hidden", !active);
-  if (!active) return;
+  const active = Boolean(state.circle); $("#team-empty").classList.toggle("hidden", active); $("#team-active").classList.toggle("hidden", !active); if (!active) return;
   $("#invite-code").textContent = state.circle.invite_code;
-  $("#team-members").innerHTML = (state.circle.members || []).map((member) => {
-    const name = displayName(member);
-    return `<article class="member"><div class="avatar">${escapeHtml(name.slice(0, 1).toUpperCase())}</div><div><strong>${escapeHtml(name)}</strong><small>${Number(member.id) === Number(state.user.id) ? "Это вы" : "Напарник"}</small></div></article>`;
-  }).join("");
+  $("#team-members").innerHTML = (state.circle.members || []).map((member) => { const name = displayName(member); return `<article class="member"><div class="member-avatar">${escapeHtml(name.slice(0, 1).toUpperCase())}</div><div><strong>${escapeHtml(name)}</strong><small>${Number(member.id) === Number(state.user.id) ? "Это вы" : "Напарник"}</small></div></article>`; }).join("");
 }
 
 async function createTeam(event) {
-  event.preventDefault();
-  const name = new FormData(event.currentTarget).get("name");
-  const data = await api("/api/circles", { method: "POST", body: JSON.stringify({ name }) });
-  state.circle = data.circle; renderTeam(); haptic("medium"); toast("Команда создана");
+  event.preventDefault(); const form = event.currentTarget;
+  await pending($("button[type='submit']", form), async () => { const name = new FormData(form).get("name"); const data = await api("/api/circles", { method: "POST", body: JSON.stringify({ name }) }); state.circle = data.circle; renderTeam(); haptic("medium"); toast("Команда создана"); });
 }
 
 async function joinTeam(event) {
-  event.preventDefault();
-  const invite_code = new FormData(event.currentTarget).get("invite_code");
-  const data = await api("/api/circles/join", { method: "POST", body: JSON.stringify({ invite_code }) });
-  state.circle = data.circle; renderTeam(); haptic("medium"); toast("Вы присоединились к команде");
+  event.preventDefault(); const form = event.currentTarget;
+  await pending($("button[type='submit']", form), async () => { const invite_code = new FormData(form).get("invite_code"); const data = await api("/api/circles/join", { method: "POST", body: JSON.stringify({ invite_code }) }); state.circle = data.circle; renderTeam(); haptic("medium"); toast("Вы в команде"); });
 }
 
 async function leaveTeam() {
-  const confirmed = window.confirm("Покинуть команду? Ваши записи не удалятся.");
-  if (!confirmed) return;
-  await api("/api/circles/leave", { method: "POST", body: "{}" });
-  state.circle = null; renderTeam(); toast("Вы покинули команду");
+  if (!(await askConfirm("Распустить команду? Общий доступ к прежним записям закроется у обоих."))) return;
+  await pending($("#leave-team"), async () => { await api("/api/circles/leave", { method: "POST", body: "{}" }); state.circle = null; renderTeam(); toast("Команда распущена"); });
 }
 
-function showRequestError(error) {
-  console.error(error);
-  toast(error.message || "Не удалось выполнить действие", 4200);
-  try {
-    if (tg?.isVersionAtLeast?.("6.1")) tg.HapticFeedback?.notificationOccurred("error");
-  } catch (_) { /* optional */ }
+async function copyInvite() {
+  const code = state.circle?.invite_code; if (!code) return;
+  try { await navigator.clipboard.writeText(code); }
+  catch (_) { const input = document.createElement("textarea"); input.value = code; input.style.position = "fixed"; input.style.opacity = "0"; document.body.appendChild(input); input.select(); document.execCommand("copy"); input.remove(); }
+  haptic(); toast("Код скопирован");
 }
+
+async function exportCsv() {
+  await pending($("#export-button"), async () => {
+    const response = await fetch("/api/export", { headers: { "X-Telegram-Init-Data": tg?.initData || "" } });
+    if (!response.ok) throw new Error("Не удалось подготовить экспорт");
+    const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `trading-journal-${todayISO()}.csv`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); toast("CSV подготовлен");
+  });
+}
+
+function setScope(group, value) {
+  $$(`[data-scope-control="${group}"] button`).forEach((button) => { const active = button.dataset.scope === value; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+}
+
+function showRequestError(error) { console.error(error); notifyError(); toast(error.message || "Не удалось выполнить действие", 4200); }
 
 function bindEvents() {
   $$(".bottom-nav button").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
+  $("#profile-shortcut").addEventListener("click", () => switchView("profile"));
+  for (const selector of ["#new-trade-primary", "#open-trade-button", "#floating-trade-button"]) $(selector).addEventListener("click", () => openTradeDialog());
   $("#mood-form").addEventListener("submit", (event) => saveMood(event).catch(showRequestError));
-  for (const key of ["energy", "confidence", "discipline"]) {
-    $(`#${key}`).addEventListener("input", (event) => { $(`#${key}-output`).value = event.target.value; });
-  }
-  $("#open-trade-button").addEventListener("click", () => openTradeDialog());
-  $("#close-trade-dialog").addEventListener("click", () => $("#trade-dialog").close());
-  $("#trade-form").addEventListener("submit", (event) => saveTrade(event).catch(showRequestError));
-  $("#delete-trade").addEventListener("click", () => confirmDelete().catch(showRequestError));
+  $("#settings-form").addEventListener("submit", (event) => saveSettings(event).catch(showRequestError));
+  for (const form of [$("#mood-form"), $("#settings-form"), $("#trade-form")]) form.addEventListener("input", () => setDirty(true));
+  for (const key of ["energy", "confidence", "discipline"]) $(`#${key}`).addEventListener("input", (event) => { $(`#${key}-output`).value = event.target.value; });
+  $("#close-trade-dialog").addEventListener("click", async () => { if (!state.dirty || await askConfirm("Закрыть без сохранения?") ) { setDirty(false); $("#trade-dialog").close(); } });
+  $("#trade-dialog").addEventListener("cancel", (event) => { if (state.dirty) { event.preventDefault(); askConfirm("Закрыть без сохранения?").then((ok) => { if (ok) { setDirty(false); $("#trade-dialog").close(); } }); } });
+  $("#trade-form").addEventListener("submit", (event) => saveTrade(event).catch(showRequestError)); $("#delete-trade").addEventListener("click", () => confirmDelete().catch(showRequestError));
+  for (const key of ["risk_amount", "pnl", "status"]) $("#trade-form").elements[key].addEventListener("input", updateRPreview);
   $("#calendar-prev").addEventListener("click", () => { state.calendarMonth.setMonth(state.calendarMonth.getMonth() - 1); state.selectedDay = null; loadCalendar().catch(showRequestError); });
   $("#calendar-next").addEventListener("click", () => { state.calendarMonth.setMonth(state.calendarMonth.getMonth() + 1); state.selectedDay = null; loadCalendar().catch(showRequestError); });
-  $$('[data-scope-control="calendar"] button').forEach((button) => button.addEventListener("click", () => {
-    state.calendarScope = button.dataset.scope; $$('[data-scope-control="calendar"] button').forEach((item) => item.classList.toggle("active", item === button)); loadCalendar().catch(showRequestError);
-  }));
-  $$('[data-scope-control="stats"] button').forEach((button) => button.addEventListener("click", () => {
-    state.statsScope = button.dataset.scope; $$('[data-scope-control="stats"] button').forEach((item) => item.classList.toggle("active", item === button)); loadStats().catch(showRequestError);
-  }));
+  $$('[data-scope-control="calendar"] button').forEach((button) => button.addEventListener("click", () => { state.calendarScope = button.dataset.scope; setScope("calendar", state.calendarScope); state.selectedDay = null; loadCalendar().catch(showRequestError); }));
+  $$('[data-scope-control="stats"] button').forEach((button) => button.addEventListener("click", () => { state.statsScope = button.dataset.scope; setScope("stats", state.statsScope); loadStats().catch(showRequestError); }));
   $("#stats-period").addEventListener("change", () => loadStats().catch(showRequestError));
-  $("#create-team-form").addEventListener("submit", (event) => createTeam(event).catch(showRequestError));
-  $("#join-team-form").addEventListener("submit", (event) => joinTeam(event).catch(showRequestError));
-  $("#copy-invite").addEventListener("click", async () => { await navigator.clipboard.writeText(state.circle.invite_code); haptic(); toast("Код скопирован"); });
-  $("#leave-team").addEventListener("click", () => leaveTeam().catch(showRequestError));
-  $("#retry-button").addEventListener("click", () => window.location.reload());
+  $("#create-team-form").addEventListener("submit", (event) => createTeam(event).catch(showRequestError)); $("#join-team-form").addEventListener("submit", (event) => joinTeam(event).catch(showRequestError));
+  $("#copy-invite").addEventListener("click", () => copyInvite().catch(showRequestError)); $("#leave-team").addEventListener("click", () => leaveTeam().catch(showRequestError));
+  $("#export-button").addEventListener("click", () => exportCsv().catch(showRequestError)); $("#retry-button").addEventListener("click", () => window.location.reload());
+  tg?.onEvent?.("themeChanged", applyTelegramTheme);
 }
 
-async function start() {
-  applyTelegramTheme();
-  bindEvents();
-  await loadBootstrap();
-  setLoading(false);
-}
-
+async function start() { applyTelegramTheme(); bindEvents(); await loadBootstrap(); setLoading(false); }
 start().catch(showFatal);

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from journal.auth import dev_principal
 from journal.db import initialize_database
-from journal.repository import JournalRepository
+from journal.repository import JournalRepository, RepositoryError
 
 
 class RepositoryTests(unittest.IsolatedAsyncioTestCase):
@@ -18,15 +18,9 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.owner = await self.repo.upsert_user(dev_principal(101, "Сергей"))
         self.friend = await self.repo.upsert_user(dev_principal(202, "Друг"))
 
-    async def asyncTearDown(self) -> None:
-        self.temp.cleanup()
-
-    async def test_circle_is_limited_and_shared_entries_are_visible(self) -> None:
-        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
-        joined = await self.repo.join_circle(self.friend["id"], circle["invite_code"])
-        self.assertEqual(len(joined["members"]), 2)
-
-        base = {
+    @staticmethod
+    def trade(**overrides):
+        values = {
             "traded_at": "2026-08-28T12:00:00", "symbol": "XAUUSD",
             "direction": "BUY", "timeframe": "M15", "setup": "Ретест",
             "entry_price": 4500.0, "stop_loss": 4490.0, "take_profit": 4520.0,
@@ -35,7 +29,18 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
             "plan_followed": 1, "mistake": "", "note": "", "screenshot_url": "",
             "visibility": "team",
         }
-        await self.repo.create_trade(self.owner["id"], base)
+        values.update(overrides)
+        return values
+
+    async def asyncTearDown(self) -> None:
+        self.temp.cleanup()
+
+    async def test_circle_is_limited_and_shared_entries_are_visible(self) -> None:
+        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
+        joined = await self.repo.join_circle(self.friend["id"], circle["invite_code"])
+        self.assertEqual(len(joined["members"]), 2)
+
+        await self.repo.create_trade(self.owner["id"], self.trade())
         visible = await self.repo.list_trades(
             self.friend["id"], start_date="2026-08-28", end_date="2026-08-28", scope="team"
         )
@@ -45,15 +50,12 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
     async def test_private_trade_is_not_visible_to_friend(self) -> None:
         circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
         await self.repo.join_circle(self.friend["id"], circle["invite_code"])
-        trade = {
-            "traded_at": "2026-08-28T12:00:00", "symbol": "EURUSD",
-            "direction": "SELL", "timeframe": "H1", "setup": "",
-            "entry_price": None, "stop_loss": None, "take_profit": None,
-            "volume": None, "risk_amount": None, "pnl": -50.0, "r_multiple": None,
-            "emotion_before": "", "emotion_after": "", "plan_followed": 0,
-            "mistake": "FOMO", "note": "", "screenshot_url": "", "visibility": "private",
-        }
-        await self.repo.create_trade(self.owner["id"], trade)
+        await self.repo.create_trade(self.owner["id"], self.trade(
+            symbol="EURUSD", direction="SELL", timeframe="H1", setup="",
+            entry_price=None, stop_loss=None, take_profit=None, volume=None,
+            risk_amount=None, pnl=-50.0, r_multiple=None, plan_followed=0,
+            mistake="FOMO", visibility="private",
+        ))
         visible = await self.repo.list_trades(
             self.friend["id"], start_date="2026-08-28", end_date="2026-08-28", scope="team"
         )
@@ -71,7 +73,51 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         saved = await self.repo.get_mood(self.owner["id"], "2026-08-28")
         self.assertEqual(saved["discipline"], 4)
 
+    async def test_open_trades_are_visible_but_excluded_from_performance(self) -> None:
+        await self.repo.create_trade(self.owner["id"], self.trade())
+        await self.repo.create_trade(
+            self.owner["id"],
+            self.trade(status="open", client_entry_id="open_trade_001", pnl=0),
+        )
+
+        calendar = await self.repo.calendar(
+            self.owner["id"], start_date="2026-08-28", end_date="2026-08-28"
+        )
+        stats = await self.repo.stats(
+            self.owner["id"], start_date="2026-08-28", end_date="2026-08-28"
+        )
+
+        self.assertEqual(calendar[0]["trades"], 2)
+        self.assertEqual(stats["trades"], 1)
+        self.assertEqual(stats["pnl"], 400.0)
+
+    async def test_old_team_entries_are_not_exposed_to_a_new_partner(self) -> None:
+        first_circle = await self.repo.create_circle(self.owner["id"], "Первая пара")
+        await self.repo.join_circle(self.friend["id"], first_circle["invite_code"])
+        await self.repo.create_trade(self.owner["id"], self.trade())
+
+        await self.repo.leave_circle(self.owner["id"])
+        self.assertIsNone(await self.repo.get_circle(self.friend["id"]))
+        newcomer = await self.repo.upsert_user(dev_principal(303, "Новый друг"))
+        second_circle = await self.repo.create_circle(self.owner["id"], "Вторая пара")
+        await self.repo.join_circle(newcomer["id"], second_circle["invite_code"])
+
+        visible = await self.repo.list_trades(
+            newcomer["id"], start_date="2026-08-28", end_date="2026-08-28", scope="team"
+        )
+        self.assertEqual(visible, [])
+        with self.assertRaises(RepositoryError):
+            await self.repo.join_circle(self.friend["id"], first_circle["invite_code"])
+
+    async def test_entry_created_before_circle_stays_private(self) -> None:
+        await self.repo.create_trade(self.owner["id"], self.trade())
+        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
+        await self.repo.join_circle(self.friend["id"], circle["invite_code"])
+        visible = await self.repo.list_trades(
+            self.friend["id"], start_date="2026-08-28", end_date="2026-08-28", scope="team"
+        )
+        self.assertEqual(visible, [])
+
 
 if __name__ == "__main__":
     unittest.main()
-

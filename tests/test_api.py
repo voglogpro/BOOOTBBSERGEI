@@ -32,6 +32,7 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         bootstrap = await response.json()
         self.assertEqual(bootstrap["user"]["telegram_id"], 999)
+        self.assertEqual(bootstrap["settings"]["balance"], 50000)
 
         response = await self.client.post(
             "/api/trades",
@@ -49,6 +50,31 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
             "/api/trades?from=2026-08-28&to=2026-08-28"
         )
         self.assertEqual(len((await response.json())["trades"]), 1)
+
+    async def test_trade_creation_is_idempotent_and_validated(self) -> None:
+        payload = {
+            "client_entry_id": "entry_12345678", "traded_at": "2026-08-28T10:30:00",
+            "symbol": "XAUUSD", "direction": "BUY", "status": "closed",
+            "risk_amount": 100, "pnl": 250, "plan_followed": True,
+            "visibility": "private",
+        }
+        first = await self.client.post("/api/trades", json=payload)
+        second = await self.client.post("/api/trades", json=payload)
+        self.assertEqual(first.status, 201)
+        self.assertEqual(second.status, 201)
+        self.assertEqual((await first.json())["trade"]["id"], (await second.json())["trade"]["id"])
+
+        response = await self.client.post("/api/trades", json={**payload, "client_entry_id": "entry_bad_123", "risk_amount": -1})
+        self.assertEqual(response.status, 400)
+
+    async def test_bootstrap_uses_client_local_date(self) -> None:
+        await self.client.put("/api/moods/2030-01-02", json={
+            "mood": 4, "energy": 4, "confidence": 3, "discipline": 5,
+            "emotion": "Спокойствие", "visibility": "private",
+        })
+        response = await self.client.get("/api/bootstrap?date=2030-01-02")
+        self.assertEqual(response.status, 200)
+        self.assertEqual((await response.json())["today_mood"]["mood"], 4)
 
     async def test_health_does_not_require_telegram_auth(self) -> None:
         response = await self.client.get("/health")

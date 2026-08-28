@@ -3,198 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f1720">
-  <title>Ритм трейдера</title>
+  <meta name="description" content="Минималистичный торговый журнал в Telegram: сделки, риск, дисциплина, календарь и аналитика.">
+  <meta name="theme-color" content="#f4f5f6">
+  <title>Торговый журнал</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/client" defer></script>
 </head>
 <body>
-  <div id="loading" class="loading-screen">
-    <div class="brand-mark">R</div>
-    <p>Загружаем журнал…</p>
-  </div>
-
-  <div id="fatal" class="fatal hidden" role="alert">
-    <div class="brand-mark">!</div>
-    <h1>Не удалось открыть журнал</h1>
-    <p id="fatal-message">Закройте окно и откройте Mini App ещё раз из Telegram.</p>
-    <button id="retry-button" class="primary-button" type="button">Повторить</button>
-  </div>
+  <div id="loading" class="loading-screen" aria-live="polite"><div class="journal-mark" aria-hidden="true"><i></i><i></i><i></i></div><strong>Торговый журнал</strong><span>Открываем записи…</span></div>
+  <div id="fatal" class="fatal hidden" role="alert"><div class="journal-mark error-mark" aria-hidden="true">!</div><h1>Журнал не открылся</h1><p id="fatal-message">Закройте окно и откройте приложение ещё раз из Telegram.</p><button id="retry-button" class="button primary" type="button">Повторить</button></div>
 
   <div id="app" class="app-shell hidden">
     <header class="topbar">
-      <div>
-        <p class="eyebrow" id="today-label">Сегодня</p>
-        <h1 id="greeting">Ритм трейдера</h1>
-      </div>
-      <div id="user-avatar" class="avatar" aria-label="Профиль">T</div>
+      <div class="brand-lockup"><div class="journal-mark small" aria-hidden="true"><i></i><i></i><i></i></div><div><strong>Торговый журнал</strong><span id="account-caption">Мой счёт</span></div></div>
+      <button id="profile-shortcut" class="avatar-button" type="button" aria-label="Открыть профиль"><span id="user-avatar">T</span></button>
     </header>
 
     <main>
       <section id="view-today" class="view active" aria-labelledby="today-nav">
-        <article class="hero-card">
-          <div>
-            <p class="eyebrow light">Стабильность за 30 дней</p>
-            <div class="score-row">
-              <strong id="stability-score">0</strong><span>/100</span>
-            </div>
-            <p id="stability-caption" class="hero-caption">Начни с честной отметки состояния.</p>
-          </div>
-          <div class="streak-pill"><span>🔥</span><strong id="streak-value">0</strong><small>дней</small></div>
+        <div class="screen-heading"><div><span id="today-label" class="overline">Сегодня</span><h1 id="greeting">Добрый день</h1></div><span id="challenge-badge" class="account-badge">Challenge</span></div>
+        <article class="daily-ledger">
+          <div class="ledger-top"><div><span>Результат дня</span><strong id="today-pnl" class="money">0 $</strong></div><div class="day-streak"><span>Серия журнала</span><strong><b id="streak-value">0</b> дн.</strong></div></div>
+          <div class="limit-block"><div class="limit-copy"><span>Запас дневного лимита</span><strong id="daily-limit-copy">—</strong></div><div class="limit-track" aria-hidden="true"><i id="daily-limit-bar"></i></div></div>
+          <div class="ledger-metrics"><div><span>Риск в сделках</span><strong id="risk-used">0 $</strong></div><div><span>Сделок</span><strong id="today-trades-count">0</strong></div><div><span>По плану</span><strong id="plan-rate">—</strong></div></div>
         </article>
+        <button id="new-trade-primary" class="button primary full action-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Записать сделку</button>
 
-        <div class="metric-grid compact">
-          <article class="metric-card"><span>Сделок</span><strong id="today-trades-count">0</strong></article>
-          <article class="metric-card"><span>Результат</span><strong id="today-pnl">$0</strong></article>
-          <article class="metric-card"><span>По плану</span><strong id="plan-rate">0%</strong></article>
-        </div>
-
-        <article class="card mood-card">
-          <div class="card-heading">
-            <div><p class="eyebrow">Состояние</p><h2>Как ты сегодня?</h2></div>
-            <span id="mood-saved" class="status-chip hidden">Сохранено</span>
-          </div>
+        <article class="panel checkin-panel">
+          <div class="panel-heading"><div><span class="overline">Перед торговлей</span><h2>Состояние и план</h2></div><span id="mood-saved" class="saved-mark hidden">Сохранено</span></div>
           <form id="mood-form" autocomplete="off">
-            <fieldset class="mood-picker">
-              <legend>Общее настроение</legend>
-              <label><input type="radio" name="mood" value="1"><span>😣<small>Тяжело</small></span></label>
-              <label><input type="radio" name="mood" value="2"><span>😕<small>Ниже нормы</small></span></label>
-              <label><input type="radio" name="mood" value="3" checked><span>😐<small>Ровно</small></span></label>
-              <label><input type="radio" name="mood" value="4"><span>🙂<small>Хорошо</small></span></label>
-              <label><input type="radio" name="mood" value="5"><span>🔥<small>В потоке</small></span></label>
+            <fieldset class="mood-picker"><legend class="sr-only">Настроение от одного до пяти</legend>
+              <label><input type="radio" name="mood" value="1"><span><b>1</b><small>Тяжело</small></span></label><label><input type="radio" name="mood" value="2"><span><b>2</b><small>Напряжён</small></span></label><label><input type="radio" name="mood" value="3" checked><span><b>3</b><small>Ровно</small></span></label><label><input type="radio" name="mood" value="4"><span><b>4</b><small>Хорошо</small></span></label><label><input type="radio" name="mood" value="5"><span><b>5</b><small>В форме</small></span></label>
             </fieldset>
-
-            <div class="range-stack">
-              <label>Энергия <output id="energy-output">3</output><input id="energy" name="energy" type="range" min="1" max="5" value="3"></label>
-              <label>Уверенность <output id="confidence-output">3</output><input id="confidence" name="confidence" type="range" min="1" max="5" value="3"></label>
-              <label>Дисциплина <output id="discipline-output">3</output><input id="discipline" name="discipline" type="range" min="1" max="5" value="3"></label>
-            </div>
-
-            <label class="field">Главная эмоция
-              <select name="emotion">
-                <option value="">Не выбрано</option><option>Спокойствие</option><option>Уверенность</option>
-                <option>Тревога</option><option>Страх</option><option>Жадность</option><option>Азарт</option>
-                <option>FOMO</option><option>Желание отыграться</option><option>Усталость</option><option>Эйфория</option>
-              </select>
-            </label>
-            <label class="field">Короткая заметка
-              <textarea name="note" rows="3" maxlength="1200" placeholder="Что влияет на решения сегодня?"></textarea>
-            </label>
-            <label class="toggle-row"><input name="visibility" type="checkbox" checked><span>Показывать другу в команде</span></label>
-            <button class="primary-button full" type="submit">Сохранить состояние</button>
+            <div class="compact-ranges"><label><span>Энергия <output id="energy-output">3</output></span><input id="energy" name="energy" type="range" min="1" max="5" value="3"></label><label><span>Уверенность <output id="confidence-output">3</output></span><input id="confidence" name="confidence" type="range" min="1" max="5" value="3"></label><label><span>Дисциплина <output id="discipline-output">3</output></span><input id="discipline" name="discipline" type="range" min="1" max="5" value="3"></label></div>
+            <label class="field">Фокус дня<input name="focus" maxlength="240" placeholder="Например: ждать подтверждения, не догонять цену"></label>
+            <div class="form-grid two"><label class="field">Главная эмоция<select name="emotion"><option value="">Не выбрано</option><option>Спокойствие</option><option>Уверенность</option><option>Тревога</option><option>Страх</option><option>Жадность</option><option>Азарт</option><option>FOMO</option><option>Желание отыграться</option><option>Усталость</option><option>Эйфория</option></select></label><label class="field">Видимость<select name="visibility"><option value="team">Для команды</option><option value="private">Только мне</option></select></label></div>
+            <details class="disclosure"><summary>Заметка и итог дня</summary><label class="field">Контекст<textarea name="note" rows="2" maxlength="1200" placeholder="Что влияет на решения?"></textarea></label><label class="field">Один вывод на завтра<textarea name="lesson" rows="2" maxlength="500" placeholder="Что сохранить или изменить?"></textarea></label></details>
+            <button class="button secondary full" type="submit">Сохранить состояние</button>
           </form>
         </article>
-
-        <div class="section-heading">
-          <div><p class="eyebrow">Журнал</p><h2>Сделки сегодня</h2></div>
-          <button id="open-trade-button" class="icon-button" type="button" aria-label="Добавить сделку">＋</button>
-        </div>
-        <div id="today-trades" class="trade-list"></div>
+        <div class="section-heading"><div><span class="overline">Лента</span><h2>Сделки сегодня</h2></div><button id="open-trade-button" class="icon-button" type="button" aria-label="Добавить сделку"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><div id="today-trades" class="trade-list"></div>
       </section>
 
       <section id="view-calendar" class="view" aria-labelledby="calendar-nav">
-        <div class="page-heading"><p class="eyebrow">История</p><h2>Календарь</h2><p>Смотри не на один результат, а на повторяющееся поведение.</p></div>
-        <div class="segmented" data-scope-control="calendar">
-          <button class="active" data-scope="me" type="button">Я</button><button data-scope="team" type="button">Команда</button>
-        </div>
-        <article class="card calendar-card">
-          <div class="calendar-toolbar">
-            <button id="calendar-prev" class="plain-button" type="button" aria-label="Предыдущий месяц">‹</button>
-            <h3 id="calendar-title"></h3>
-            <button id="calendar-next" class="plain-button" type="button" aria-label="Следующий месяц">›</button>
-          </div>
-          <div class="weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
-          <div id="calendar-grid" class="calendar-grid"></div>
-        </article>
-        <article id="day-details" class="card day-details"><p class="muted">Выберите день в календаре.</p></article>
+        <div class="page-heading"><span class="overline">История</span><h1>Календарь</h1><p>Результат, дисциплина и сделки — по дням.</p></div>
+        <div class="segmented" data-scope-control="calendar" role="group" aria-label="Чьи записи показывать"><button class="active" data-scope="me" type="button" aria-pressed="true">Мои</button><button data-scope="team" type="button" aria-pressed="false">Команда</button></div>
+        <article class="panel calendar-panel"><div class="calendar-toolbar"><button id="calendar-prev" class="icon-button ghost" type="button" aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><h2 id="calendar-title"></h2><button id="calendar-next" class="icon-button ghost" type="button" aria-label="Следующий месяц"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div><div class="weekdays" aria-hidden="true"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div><div id="calendar-grid" class="calendar-grid"></div></article>
+        <article id="day-details" class="panel day-details"><p class="empty-copy">Выберите торговый день.</p></article>
       </section>
 
       <section id="view-stats" class="view" aria-labelledby="stats-nav">
-        <div class="page-heading"><p class="eyebrow">Обратная связь</p><h2>Статистика</h2><p>Прибыль важна, но дисциплина показывает качество процесса.</p></div>
-        <div class="filter-row">
-          <div class="segmented" data-scope-control="stats">
-            <button class="active" data-scope="me" type="button">Я</button><button data-scope="team" type="button">Команда</button>
-          </div>
-          <select id="stats-period" aria-label="Период статистики"><option value="7">7 дней</option><option value="30" selected>30 дней</option><option value="90">90 дней</option><option value="365">Год</option></select>
-        </div>
-        <div class="metric-grid">
-          <article class="metric-card accent"><span>Итог</span><strong id="stats-pnl">$0</strong><small id="stats-trades">0 сделок</small></article>
-          <article class="metric-card"><span>Винрейт</span><strong id="stats-winrate">0%</strong><small id="stats-wl">0 / 0</small></article>
-          <article class="metric-card"><span>По плану</span><strong id="stats-plan">0%</strong><small>качество процесса</small></article>
-          <article class="metric-card"><span>Средний R</span><strong id="stats-r">0</strong><small>на сделку</small></article>
-        </div>
-        <article class="card progress-card">
-          <div class="progress-row"><div><strong>Стабильность</strong><small>дневник + дисциплина + план</small></div><b id="stats-stability">0</b></div>
-          <div class="progress-track"><span id="stability-bar"></span></div>
-          <div class="progress-row"><div><strong>Средняя дисциплина</strong><small>по дневным отметкам</small></div><b id="stats-discipline">0/5</b></div>
-          <div class="progress-track secondary"><span id="discipline-bar"></span></div>
-        </article>
-        <article class="card insight-card"><p class="eyebrow">Фокус недели</p><h3 id="stats-insight">Сначала собери данные</h3><p id="stats-insight-copy">После нескольких записей здесь появится подсказка по стабильности.</p></article>
+        <div class="page-heading"><span class="overline">Аналитика</span><h1>Что работает</h1><p>Только факты из ваших записей.</p></div>
+        <div class="filter-row"><div class="segmented" data-scope-control="stats" role="group" aria-label="Чья статистика"><button class="active" data-scope="me" type="button" aria-pressed="true">Моя</button><button data-scope="team" type="button" aria-pressed="false">Команда</button></div><select id="stats-period" aria-label="Период статистики"><option value="7">7 дней</option><option value="30" selected>30 дней</option><option value="90">90 дней</option><option value="365">Год</option></select></div>
+        <div class="stats-grid"><article><span>Итог</span><strong id="stats-pnl" class="money">0 $</strong><small id="stats-trades">0 сделок</small></article><article><span>Винрейт</span><strong id="stats-winrate">0%</strong><small id="stats-wl">0 / 0</small></article><article><span>Profit factor</span><strong id="stats-pf">—</strong><small>прибыль / убыток</small></article><article><span>Средний R</span><strong id="stats-r">—</strong><small>на сделку</small></article><article><span>Ожидание</span><strong id="stats-expectancy">0 $</strong><small>на сделку</small></article><article><span>Просадка</span><strong id="stats-drawdown">0 $</strong><small>за период</small></article></div>
+        <article class="panel chart-panel"><div class="panel-heading"><div><span class="overline">Кривая результата</span><h2>Накопительный P&amp;L</h2></div><span id="stats-plan" class="quiet-stat">0% по плану</span></div><div id="equity-chart" class="equity-chart" role="img" aria-label="График накопительного результата"></div></article>
+        <article class="panel fact-panel"><span class="overline">Итог периода</span><h2 id="stats-observation">Недостаточно записей</h2><p id="stats-observation-copy">После трёх сделок здесь появится конкретное наблюдение.</p></article>
+        <div class="breakdown-grid"><article class="panel"><div class="panel-heading"><h2>Сетапы</h2><span>результат</span></div><div id="setup-breakdown" class="breakdown-list"></div></article><article class="panel"><div class="panel-heading"><h2>Сессии</h2><span>результат</span></div><div id="session-breakdown" class="breakdown-list"></div></article><article class="panel"><div class="panel-heading"><h2>Ошибки</h2><span>повторы</span></div><div id="mistake-breakdown" class="breakdown-list"></div></article></div>
       </section>
 
-      <section id="view-team" class="view" aria-labelledby="team-nav">
-        <div class="page-heading"><p class="eyebrow">Вместе спокойнее</p><h2>Команда</h2><p>Вы видите только записи, которыми решили поделиться.</p></div>
-        <div id="team-empty">
-          <article class="card team-intro"><div class="team-illustration">◉ ◉</div><h3>Создай команду на двоих</h3><p>Пригласи друга кодом или введи код его команды.</p></article>
-          <form id="create-team-form" class="card inline-form"><label class="field">Название команды<input name="name" maxlength="40" autocomplete="organization" value="Спокойные трейдеры"></label><button class="primary-button full" type="submit">Создать команду</button></form>
-          <form id="join-team-form" class="card inline-form"><label class="field">Код приглашения<input name="invite_code" maxlength="8" autocomplete="off" placeholder="AB12CD34"></label><button class="secondary-button full" type="submit">Присоединиться</button></form>
-        </div>
-        <div id="team-active" class="hidden">
-          <article class="card invite-card"><p class="eyebrow">Код приглашения</p><div class="invite-code-row"><strong id="invite-code">—</strong><button id="copy-invite" class="secondary-button" type="button">Копировать</button></div><p>Отправь этот код только своему другу.</p></article>
-          <div id="team-members" class="member-list"></div>
-          <article class="card privacy-note"><strong>Как работает приватность</strong><p>Личные записи видны только автору. Командные записи доступны обоим участникам. Друг не может редактировать или удалять твои сделки.</p></article>
-          <button id="leave-team" class="danger-button full" type="button">Покинуть команду</button>
-        </div>
+      <section id="view-profile" class="view" aria-labelledby="profile-nav">
+        <div class="page-heading"><span class="overline">Настройки</span><h1>Счёт и команда</h1><p>Лимиты нужны для контроля, а не для давления.</p></div>
+        <article class="panel"><div class="panel-heading"><div><span class="overline">Торговый счёт</span><h2>Лимиты и риск</h2></div></div><form id="settings-form" autocomplete="off"><label class="field">Название счёта<input name="account_name" maxlength="60" placeholder="Stellar 50K"></label><div class="form-grid two"><label class="field">Баланс<input name="balance" type="number" min="100" step="0.01" required></label><label class="field">Валюта<select name="currency"><option>USD</option><option>EUR</option><option>RUB</option></select></label></div><div class="form-grid two"><label class="field">Цель, %<input name="profit_target_pct" type="number" min="0.1" max="100" step="0.1" required></label><label class="field">Риск на сделку, %<input name="risk_per_trade_pct" type="number" min="0.01" max="100" step="0.01" required></label></div><div class="form-grid two"><label class="field">Дневной лимит, %<input name="daily_loss_limit_pct" type="number" min="0.1" max="100" step="0.1" required></label><label class="field">Макс. убыток, %<input name="max_loss_limit_pct" type="number" min="0.1" max="100" step="0.1" required></label></div><label class="field">Максимум сделок в день<input name="max_trades_day" type="number" min="1" max="100" step="1" required></label><button class="button primary full" type="submit">Сохранить счёт</button></form></article>
+        <article class="panel export-panel"><div><span class="overline">Ваши данные</span><h2>Экспорт журнала</h2><p>CSV открывается в Excel и остаётся у вас.</p></div><button id="export-button" class="button secondary" type="button">Скачать CSV</button></article>
+        <div id="team-empty"><article class="panel team-intro"><span class="overline">Команда на двоих</span><h2>Разбор с напарником</h2><p>Общий доступ только к записям, которые вы отметили как командные.</p></article><form id="create-team-form" class="panel"><label class="field">Название команды<input name="name" maxlength="40" autocomplete="organization" value="Спокойные трейдеры"></label><button class="button primary full" type="submit">Создать команду</button></form><form id="join-team-form" class="panel"><label class="field">Код приглашения<input name="invite_code" maxlength="8" autocomplete="off" placeholder="AB12CD34"></label><button class="button secondary full" type="submit">Войти по коду</button></form></div>
+        <div id="team-active" class="hidden"><article class="panel invite-panel"><span class="overline">Код для напарника</span><div class="invite-code-row"><strong id="invite-code">—</strong><button id="copy-invite" class="button secondary" type="button">Копировать</button></div></article><div id="team-members" class="member-list"></div><p class="privacy-copy">Выход распускает команду. Старые общие записи не станут видны будущему напарнику.</p><button id="leave-team" class="button danger full" type="button">Распустить команду</button></div>
       </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="Разделы">
-      <button id="today-nav" class="active" data-view="today" type="button"><span>⌂</span><small>Сегодня</small></button>
-      <button id="calendar-nav" data-view="calendar" type="button"><span>□</span><small>Календарь</small></button>
-      <button id="stats-nav" data-view="stats" type="button"><span>↗</span><small>Статистика</small></button>
-      <button id="team-nav" data-view="team" type="button"><span>◎</span><small>Команда</small></button>
-    </nav>
+    <button id="floating-trade-button" class="floating-action" type="button" aria-label="Записать сделку"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <nav class="bottom-nav" aria-label="Разделы"><button id="today-nav" class="active" data-view="today" type="button" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20h-5v-5H9v5H4z"/></svg><small>Сегодня</small></button><button id="calendar-nav" data-view="calendar" type="button"><svg viewBox="0 0 24 24"><path d="M5 4v3m14-3v3M4 9h16M5 6h14a1 1 0 0 1 1 1v13H4V7a1 1 0 0 1 1-1Z"/></svg><small>Календарь</small></button><button id="stats-nav" data-view="stats" type="button"><svg viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7"/></svg><small>Аналитика</small></button><button id="profile-nav" data-view="profile" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20c.8-4 3.1-6 7-6s6.2 2 7 6"/></svg><small>Профиль</small></button></nav>
   </div>
 
-  <dialog id="trade-dialog" class="trade-dialog">
-    <form id="trade-form" method="dialog" autocomplete="off">
-      <div class="dialog-heading"><div><p class="eyebrow">Новая запись</p><h2>Добавить сделку</h2></div><button id="close-trade-dialog" class="plain-button" type="button" aria-label="Закрыть">×</button></div>
-      <input name="trade_id" type="hidden">
-      <div class="form-grid two">
-        <label class="field">Дата и время<input name="traded_at" type="datetime-local" required></label>
-        <label class="field">Инструмент<input name="symbol" maxlength="20" value="XAUUSD" required></label>
-      </div>
-      <div class="form-grid two">
-        <label class="field">Направление<select name="direction"><option value="BUY">Buy</option><option value="SELL">Sell</option></select></label>
-        <label class="field">Таймфрейм<select name="timeframe"><option>M5</option><option selected>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option></select></label>
-      </div>
-      <label class="field">Сетап / логика<input name="setup" maxlength="160" placeholder="Ретест уровня, снятие ликвидности…"></label>
-      <div class="form-grid three">
-        <label class="field">Вход<input name="entry_price" type="number" step="any"></label>
-        <label class="field">Стоп<input name="stop_loss" type="number" step="any"></label>
-        <label class="field">Цель<input name="take_profit" type="number" step="any"></label>
-      </div>
-      <div class="form-grid three">
-        <label class="field">Объём<input name="volume" type="number" step="any" min="0"></label>
-        <label class="field">Риск, $<input name="risk_amount" type="number" step="any" min="0"></label>
-        <label class="field">Результат, $<input name="pnl" type="number" step="any" required></label>
-      </div>
-      <label class="field">Результат, R<input name="r_multiple" type="number" step="any" placeholder="Например: 2.3"></label>
-      <div class="form-grid two">
-        <label class="field">Эмоция до<input name="emotion_before" maxlength="80" placeholder="Спокойствие"></label>
-        <label class="field">Эмоция после<input name="emotion_after" maxlength="80" placeholder="Облегчение"></label>
-      </div>
-      <label class="field">Ошибка или нарушение<input name="mistake" maxlength="160" placeholder="Нет / ранний вход / FOMO…"></label>
-      <label class="field">Заметка<textarea name="note" rows="3" maxlength="1200" placeholder="Что повторить или изменить?"></textarea></label>
-      <label class="field">Ссылка на скриншот<input name="screenshot_url" type="url" maxlength="1000" placeholder="https://…"></label>
-      <label class="toggle-row"><input name="plan_followed" type="checkbox" checked><span>Сделка выполнена по плану</span></label>
-      <label class="toggle-row"><input name="visibility" type="checkbox" checked><span>Показывать другу в команде</span></label>
-      <div class="dialog-actions"><button id="delete-trade" class="danger-button hidden" type="button">Удалить</button><button class="primary-button" type="submit">Сохранить сделку</button></div>
-    </form>
-  </dialog>
-
-  <div id="toast" class="toast hidden" role="status"></div>
+  <dialog id="trade-dialog" class="trade-dialog" aria-labelledby="trade-dialog-title"><form id="trade-form" method="dialog" autocomplete="off">
+    <header class="dialog-heading"><div><span id="trade-dialog-kicker" class="overline">Журнал сделки</span><h1 id="trade-dialog-title">Новая сделка</h1></div><button id="close-trade-dialog" class="icon-button ghost" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+    <div class="dialog-body"><input name="trade_id" type="hidden"><input name="client_entry_id" type="hidden"><div class="form-grid two"><label class="field">Инструмент<input name="symbol" maxlength="20" value="XAUUSD" required></label><label class="field">Дата и время<input name="traded_at" type="datetime-local" required></label></div><div class="form-grid two"><label class="field">Направление<select name="direction"><option value="BUY">Buy / Long</option><option value="SELL">Sell / Short</option></select></label><label class="field">Статус<select name="status"><option value="closed">Закрыта</option><option value="open">Открыта</option><option value="planned">План</option><option value="cancelled">Отменена</option></select></label></div><label class="field">Сетап<input name="setup" maxlength="160" list="setup-suggestions" placeholder="Ретест уровня, снятие ликвидности…"><datalist id="setup-suggestions"><option value="Ретест уровня"><option value="Снятие ликвидности"><option value="Пробой и закрепление"><option value="Отбой от зоны"></datalist></label><div class="form-grid three"><label class="field">Вход<input name="entry_price" type="number" step="any" min="0"></label><label class="field">Стоп<input name="stop_loss" type="number" step="any" min="0"></label><label class="field">Цель<input name="take_profit" type="number" step="any" min="0"></label></div><div class="form-grid three"><label class="field">Объём<input name="volume" type="number" step="any" min="0"></label><label class="field">Риск, $<input name="risk_amount" type="number" step="any" min="0"></label><label class="field">Результат, $<input name="pnl" type="number" step="any"></label></div><p id="r-preview" class="calculation-note">R будет рассчитан из результата и риска.</p>
+      <details class="disclosure trade-extra"><summary>Контекст и разбор</summary><div class="form-grid three"><label class="field">Таймфрейм<select name="timeframe"><option>M5</option><option selected>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option></select></label><label class="field">Сессия<select name="session"><option value="">Не указана</option><option>Asia</option><option>London</option><option>New York</option><option>Overlap</option><option>Other</option></select></label><label class="field">Оценка<select name="grade"><option value="">—</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label></div><label class="field">Рыночный контекст<input name="market_context" maxlength="240" placeholder="Тренд H1, реакция от дневной зоны…"></label><div class="form-grid two"><label class="field">Эмоция до<input name="emotion_before" maxlength="80" placeholder="Спокойствие"></label><label class="field">Эмоция после<input name="emotion_after" maxlength="80" placeholder="Облегчение"></label></div><label class="field">Ошибка<input name="mistake" maxlength="160" list="mistake-suggestions" placeholder="Нет / ранний вход / FOMO…"><datalist id="mistake-suggestions"><option value="Ранний вход"><option value="FOMO"><option value="Переторговка"><option value="Передвинул стоп"><option value="Увеличил риск"><option value="Revenge trade"></datalist></label><label class="field">Заметка<textarea name="note" rows="3" maxlength="1200" placeholder="Почему вошёл и что понял после сделки?"></textarea></label><label class="field">Ссылка на скриншот<input name="screenshot_url" type="url" maxlength="1000" placeholder="https://…"></label></details>
+      <div class="form-grid two compact-selects"><label class="field">По плану<select name="plan_followed"><option value="true">Да</option><option value="false">Нет</option></select></label><label class="field">Видимость<select name="visibility"><option value="team">Для команды</option><option value="private">Только мне</option></select></label></div>
+    </div><footer class="dialog-actions"><button id="delete-trade" class="button danger hidden" type="button">Удалить</button><button id="save-trade" class="button primary" type="submit">Сохранить сделку</button></footer>
+  </form></dialog>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>
