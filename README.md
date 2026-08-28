@@ -54,7 +54,7 @@ python -m unittest discover -s tests -v
 
 ```text
 journal/            backend, Telegram auth, SQLite и API
-static/             стили, клиентский JavaScript и иконка
+static/             стили, клиентский код и иконка
 tests/              тесты подписи, базы и HTTP API
 docs/DEPLOY.md      настройка BotFather и хостинга
 main.py             серверная точка запуска Python

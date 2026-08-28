@@ -58,8 +58,13 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get("/")
         self.assertEqual(response.status, 200)
         html = await response.text()
-        self.assertIn("/static/client.js", html)
+        self.assertIn('src="/client"', html)
         self.assertNotIn("/static/app.js", html)
+
+        response = await self.client.get("/client")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.content_type, "application/javascript")
+        self.assertIn("window.Telegram", await response.text())
 
 
 if __name__ == "__main__":

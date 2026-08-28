@@ -16,6 +16,7 @@ from journal.repository import JournalRepository, RepositoryError
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 INDEX = ROOT / "index.html"
+CLIENT = STATIC / "client.browser"
 
 
 @web.middleware
@@ -84,6 +85,14 @@ async def index(_: web.Request) -> web.FileResponse:
     return web.FileResponse(INDEX)
 
 
+async def client_script(_: web.Request) -> web.Response:
+    return web.Response(
+        body=CLIENT.read_bytes(),
+        content_type="application/javascript",
+        charset="utf-8",
+    )
+
+
 async def startup(app: web.Application) -> None:
     await initialize_database(app[SETTINGS_KEY].database_path)
 
@@ -98,5 +107,6 @@ def create_app(settings: Settings) -> web.Application:
     app.on_startup.append(startup)
     app.add_routes(routes())
     app.router.add_get("/", index)
+    app.router.add_get("/client", client_script)
     app.router.add_static("/static", STATIC, show_index=False, append_version=True)
     return app
