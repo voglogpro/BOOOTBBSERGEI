@@ -40,9 +40,15 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
             mood_columns = {row[1] for row in db.execute("PRAGMA table_info(moods)")}
             trade_columns = {row[1] for row in db.execute("PRAGMA table_info(trades)")}
             db.close()
-            self.assertTrue({"focus", "lesson", "circle_id"} <= mood_columns)
             self.assertTrue(
-                {"status", "client_entry_id", "session", "grade", "market_context", "circle_id"}
+                {"focus", "lesson", "journal_mode", "market_bias", "day_idea",
+                 "key_levels", "day_invalidation", "news_context", "circle_id"}
+                <= mood_columns
+            )
+            self.assertTrue(
+                {"status", "client_entry_id", "session", "grade", "market_context",
+                 "journal_mode", "confidence_before", "trade_plan", "entry_trigger",
+                 "trade_invalidation", "outcome_type", "circle_id"}
                 <= trade_columns
             )
 

@@ -256,8 +256,10 @@ class JournalRepository:
                 """
                 INSERT INTO moods(
                     user_id, entry_date, mood, energy, confidence, discipline,
-                    emotion, note, focus, lesson, visibility, circle_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    emotion, note, focus, lesson, journal_mode, market_bias,
+                    day_idea, key_levels, day_invalidation, news_context,
+                    visibility, circle_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id, entry_date) DO UPDATE SET
                     mood=excluded.mood,
                     energy=excluded.energy,
@@ -267,6 +269,12 @@ class JournalRepository:
                     note=excluded.note,
                     focus=excluded.focus,
                     lesson=excluded.lesson,
+                    journal_mode=excluded.journal_mode,
+                    market_bias=excluded.market_bias,
+                    day_idea=excluded.day_idea,
+                    key_levels=excluded.key_levels,
+                    day_invalidation=excluded.day_invalidation,
+                    news_context=excluded.news_context,
                     visibility=excluded.visibility,
                     circle_id=excluded.circle_id,
                     updated_at=CURRENT_TIMESTAMP
@@ -282,6 +290,12 @@ class JournalRepository:
                     entry["note"],
                     entry.get("focus", ""),
                     entry.get("lesson", ""),
+                    entry.get("journal_mode", "backtest"),
+                    entry.get("market_bias", "NEUTRAL"),
+                    entry.get("day_idea", ""),
+                    entry.get("key_levels", ""),
+                    entry.get("day_invalidation", ""),
+                    entry.get("news_context", ""),
                     entry["visibility"],
                     circle_id,
                 ),
@@ -309,12 +323,15 @@ class JournalRepository:
     async def create_trade(self, user_id: int, trade: dict[str, Any]) -> dict[str, Any]:
         defaults = {
             "status": "closed", "client_entry_id": "", "session": "",
-            "grade": "", "market_context": "",
+            "grade": "", "market_context": "", "journal_mode": "backtest",
+            "outcome_type": "", "trade_plan": "", "entry_trigger": "",
+            "trade_invalidation": "",
         }
         columns = [
             "traded_at", "symbol", "direction", "status", "client_entry_id",
             "timeframe", "session", "setup",
-            "grade", "market_context",
+            "grade", "market_context", "journal_mode", "confidence_before",
+            "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
@@ -351,10 +368,15 @@ class JournalRepository:
     async def update_trade(
         self, user_id: int, trade_id: int, trade: dict[str, Any]
     ) -> dict[str, Any]:
-        defaults = {"status": "closed", "session": "", "grade": "", "market_context": ""}
+        defaults = {
+            "status": "closed", "session": "", "grade": "", "market_context": "",
+            "journal_mode": "backtest", "outcome_type": "", "trade_plan": "",
+            "entry_trigger": "", "trade_invalidation": "",
+        }
         columns = [
             "traded_at", "symbol", "direction", "status", "timeframe", "session", "setup",
-            "grade", "market_context",
+            "grade", "market_context", "journal_mode", "confidence_before",
+            "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
@@ -432,6 +454,39 @@ class JournalRepository:
                 ORDER BY traded_at DESC, t.id DESC
                 """,
                 [*params, start_date, end_date],
+            )
+            return [dict(row) for row in await cursor.fetchall()]
+        finally:
+            await db.close()
+
+    async def export_dataset(self, user_id: int) -> list[dict[str, Any]]:
+        """Return personal trades enriched with the state and thesis for that day."""
+        db = await connect(self.database_path)
+        try:
+            cursor = await db.execute(
+                """
+                SELECT t.*,
+                       m.mood AS day_mood,
+                       m.energy AS day_energy,
+                       m.confidence AS day_confidence,
+                       m.discipline AS day_discipline,
+                       m.emotion AS day_emotion,
+                       m.focus AS day_focus,
+                       m.lesson AS day_lesson,
+                       m.journal_mode AS day_mode,
+                       m.market_bias AS day_bias,
+                       m.day_idea,
+                       m.key_levels AS day_key_levels,
+                       m.day_invalidation,
+                       m.news_context AS day_news_context
+                FROM trades t
+                LEFT JOIN moods m
+                  ON m.user_id=t.user_id
+                 AND m.entry_date=substr(t.traded_at, 1, 10)
+                WHERE t.user_id=?
+                ORDER BY t.traded_at, t.id
+                """,
+                (user_id,),
             )
             return [dict(row) for row in await cursor.fetchall()]
         finally:
@@ -584,6 +639,63 @@ class JournalRepository:
             row["setups"] = await breakdown("setup")
             row["sessions"] = await breakdown("session")
             row["mistakes"] = await breakdown("mistake")
+            row["outcomes"] = await breakdown("outcome_type")
+            row["modes"] = await breakdown("journal_mode")
+
+            async def psychology_breakdown(
+                label_expression: str, *, source: str = "trades"
+            ) -> list[dict[str, Any]]:
+                cursor = await db.execute(
+                    f"""
+                    SELECT {label_expression} AS label,
+                           COUNT(*) AS trades,
+                           ROUND(COALESCE(SUM(pnl), 0), 2) AS pnl,
+                           ROUND(AVG(r_multiple), 2) AS avg_r,
+                           SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) AS wins,
+                           SUM(CASE WHEN outcome_type='take' THEN 1 ELSE 0 END) AS takes,
+                           SUM(CASE WHEN outcome_type='stop' THEN 1 ELSE 0 END) AS stops
+                    FROM {source} WHERE {clause}
+                      AND status='closed'
+                      AND substr(traded_at, 1, 10) BETWEEN ? AND ?
+                      AND {label_expression} IS NOT NULL
+                    GROUP BY {label_expression}
+                    ORDER BY {label_expression}
+                    """,
+                    [*params, start_date, end_date],
+                )
+                result = []
+                for item in await cursor.fetchall():
+                    value = dict(item)
+                    value["win_rate"] = round(
+                        int(value["wins"] or 0) / int(value["trades"]) * 100, 1
+                    )
+                    result.append(value)
+                return result
+
+            row["confidence_patterns"] = await psychology_breakdown(
+                "confidence_before"
+            )
+            current_circle_id = (
+                await self._current_circle_id(db, user_id) if scope == "team" else None
+            )
+            mood_visibility = ""
+            if current_circle_id is not None:
+                mood_visibility = (
+                    f"AND (t.user_id={int(user_id)} OR "
+                    f"(m.circle_id={int(current_circle_id)} AND m.visibility='team'))"
+                )
+            mood_source = f"""
+                (SELECT t.*,
+                        (SELECT m.mood FROM moods m
+                         WHERE m.user_id=t.user_id
+                           AND m.entry_date=substr(t.traded_at, 1, 10)
+                           {mood_visibility}
+                         LIMIT 1) AS day_mood
+                 FROM trades t) AS trades
+            """
+            row["mood_patterns"] = await psychology_breakdown(
+                "day_mood", source=mood_source
+            )
 
             mood_clause, mood_params = await self._scope_clause(db, user_id, scope)
             cursor = await db.execute(

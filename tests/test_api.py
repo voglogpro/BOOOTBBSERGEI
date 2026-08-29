@@ -51,6 +51,35 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(len((await response.json())["trades"]), 1)
 
+    async def test_backtest_plan_outcome_and_ai_export(self) -> None:
+        response = await self.client.put("/api/moods/2026-08-28", json={
+            "mood": 2, "energy": 3, "confidence": 2, "discipline": 4,
+            "emotion": "Сомнение", "visibility": "private",
+            "journal_mode": "backtest", "market_bias": "LONG",
+            "day_idea": "Возврат выше дневного уровня", "key_levels": "4500",
+            "day_invalidation": "Закрепление ниже 4490", "news_context": "Без новостей",
+        })
+        self.assertEqual(response.status, 200)
+        response = await self.client.post("/api/trades", json={
+            "traded_at": "2026-08-28T10:30:00", "symbol": "XAUUSD",
+            "direction": "BUY", "status": "closed", "journal_mode": "backtest",
+            "confidence_before": 2, "trade_plan": "Лонг после возврата уровня",
+            "entry_trigger": "Закрытие M15 выше 4500", "trade_invalidation": "Ниже 4490",
+            "outcome_type": "stop", "risk_amount": 100, "pnl": -100,
+            "plan_followed": True, "visibility": "private",
+        })
+        self.assertEqual(response.status, 201)
+        trade = (await response.json())["trade"]
+        self.assertEqual(trade["outcome_type"], "stop")
+        self.assertEqual(trade["confidence_before"], 2)
+
+        response = await self.client.get("/api/export")
+        body = await response.text()
+        self.assertEqual(response.status, 200)
+        self.assertIn("day_idea", body)
+        self.assertIn("Возврат выше дневного уровня", body)
+        self.assertIn("Лонг после возврата уровня", body)
+
     async def test_trade_creation_is_idempotent_and_validated(self) -> None:
         payload = {
             "client_entry_id": "entry_12345678", "traded_at": "2026-08-28T10:30:00",

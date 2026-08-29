@@ -131,6 +131,22 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if client_entry_id and not CLIENT_ID_RE.fullmatch(client_entry_id):
         raise ApiError("Некорректный идентификатор записи")
 
+    journal_mode = _text(payload, "journal_mode", 12, "backtest").lower()
+    if journal_mode not in {"backtest", "demo", "live"}:
+        raise ApiError("Некорректный режим журнала")
+    outcome_type = _text(payload, "outcome_type", 16).lower()
+    if outcome_type not in {"", "take", "stop", "breakeven", "manual", "cancelled"}:
+        raise ApiError("Некорректный исход сделки")
+    if status == "cancelled":
+        outcome_type = "cancelled"
+    elif status != "closed":
+        outcome_type = ""
+    confidence_before = _number(payload, "confidence_before")
+    if confidence_before is not None and (
+        not confidence_before.is_integer() or not 1 <= confidence_before <= 5
+    ):
+        raise ApiError("Уверенность перед входом должна быть от 1 до 5")
+
     positive_values = {}
     for key in ("entry_price", "stop_loss", "take_profit", "volume", "risk_amount"):
         value = _number(payload, key)
@@ -138,6 +154,10 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
             raise ApiError(f"Поле {key} не может быть отрицательным")
         positive_values[key] = value
     pnl = _number(payload, "pnl", required=status == "closed", default=0.0) or 0.0
+    if outcome_type == "take" and pnl < 0:
+        raise ApiError("Тейк не может иметь отрицательный результат")
+    if outcome_type == "stop" and pnl > 0:
+        raise ApiError("Стоп не может иметь положительный результат")
     r_multiple = _number(payload, "r_multiple")
     if r_multiple is None and positive_values["risk_amount"]:
         r_multiple = round(pnl / positive_values["risk_amount"], 4)
@@ -156,6 +176,12 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "setup": _text(payload, "setup", 160),
         "grade": grade,
         "market_context": _text(payload, "market_context", 240),
+        "journal_mode": journal_mode,
+        "confidence_before": int(confidence_before) if confidence_before is not None else None,
+        "trade_plan": _text(payload, "trade_plan", 1200),
+        "entry_trigger": _text(payload, "entry_trigger", 500),
+        "trade_invalidation": _text(payload, "trade_invalidation", 500),
+        "outcome_type": outcome_type,
         **positive_values,
         "pnl": pnl,
         "r_multiple": r_multiple,
@@ -211,6 +237,16 @@ async def save_mood(request: web.Request) -> web.Response:
     values["note"] = _text(payload, "note", 1200)
     values["focus"] = _text(payload, "focus", 240)
     values["lesson"] = _text(payload, "lesson", 500)
+    values["journal_mode"] = _text(payload, "journal_mode", 12, "backtest").lower()
+    if values["journal_mode"] not in {"backtest", "demo", "live"}:
+        raise ApiError("Некорректный режим журнала")
+    values["market_bias"] = _text(payload, "market_bias", 10, "NEUTRAL").upper()
+    if values["market_bias"] not in {"LONG", "SHORT", "NEUTRAL"}:
+        raise ApiError("Некорректное направление идеи дня")
+    values["day_idea"] = _text(payload, "day_idea", 1200)
+    values["key_levels"] = _text(payload, "key_levels", 500)
+    values["day_invalidation"] = _text(payload, "day_invalidation", 500)
+    values["news_context"] = _text(payload, "news_context", 500)
     result = await _repo(request).upsert_mood(_user(request)["id"], values)
     return web.json_response({"mood": result})
 
@@ -319,14 +355,17 @@ async def save_settings(request: web.Request) -> web.Response:
 
 
 async def export_trades(request: web.Request) -> web.Response:
-    trades = await _repo(request).list_trades(
-        _user(request)["id"], start_date="1970-01-01", end_date="9999-12-31", scope="me"
-    )
+    trades = await _repo(request).export_dataset(_user(request)["id"])
     fields = [
-        "traded_at", "symbol", "direction", "status", "timeframe", "session",
-        "setup", "grade", "entry_price", "stop_loss", "take_profit", "volume",
-        "risk_amount", "pnl", "r_multiple", "plan_followed", "mistake",
-        "emotion_before", "emotion_after", "market_context", "note", "screenshot_url",
+        "traded_at", "journal_mode", "symbol", "direction", "status", "timeframe",
+        "session", "setup", "confidence_before", "trade_plan", "entry_trigger",
+        "trade_invalidation", "market_context", "entry_price", "stop_loss",
+        "take_profit", "volume", "risk_amount", "outcome_type", "pnl", "r_multiple",
+        "plan_followed", "grade", "mistake", "emotion_before", "emotion_after",
+        "note", "screenshot_url", "day_mode", "day_bias", "day_idea",
+        "day_key_levels", "day_invalidation", "day_news_context", "day_mood",
+        "day_energy", "day_confidence", "day_discipline", "day_emotion", "day_focus",
+        "day_lesson",
     ]
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")

@@ -118,6 +118,52 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(visible, [])
 
+    async def test_stats_connect_confidence_and_daily_mood_to_outcomes(self) -> None:
+        for day, mood_value, confidence, outcome, pnl in (
+            ("2026-08-27", 2, 2, "stop", -100.0),
+            ("2026-08-28", 5, 5, "take", 200.0),
+        ):
+            await self.repo.upsert_mood(self.owner["id"], {
+                "entry_date": day, "mood": mood_value, "energy": 3,
+                "confidence": confidence, "discipline": 4, "emotion": "",
+                "note": "", "visibility": "private", "journal_mode": "backtest",
+                "market_bias": "LONG", "day_idea": "Тест идеи",
+            })
+            await self.repo.create_trade(self.owner["id"], self.trade(
+                traded_at=f"{day}T12:00:00", confidence_before=confidence,
+                journal_mode="backtest", outcome_type=outcome, pnl=pnl,
+                r_multiple=pnl / 100, visibility="private",
+            ))
+
+        stats = await self.repo.stats(
+            self.owner["id"], start_date="2026-08-27", end_date="2026-08-28"
+        )
+        confidence = {row["label"]: row for row in stats["confidence_patterns"]}
+        moods = {row["label"]: row for row in stats["mood_patterns"]}
+        self.assertEqual(confidence[2]["stops"], 1)
+        self.assertEqual(confidence[5]["takes"], 1)
+        self.assertEqual(moods[2]["pnl"], -100.0)
+        self.assertEqual(moods[5]["pnl"], 200.0)
+
+    async def test_team_stats_do_not_infer_a_private_daily_mood(self) -> None:
+        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
+        await self.repo.join_circle(self.friend["id"], circle["invite_code"])
+        await self.repo.upsert_mood(self.owner["id"], {
+            "entry_date": "2026-08-28", "mood": 1, "energy": 1,
+            "confidence": 1, "discipline": 1, "emotion": "Тревога",
+            "note": "", "visibility": "private",
+        })
+        await self.repo.create_trade(self.owner["id"], self.trade(
+            outcome_type="stop", pnl=-100, visibility="team"
+        ))
+
+        stats = await self.repo.stats(
+            self.friend["id"], start_date="2026-08-28", end_date="2026-08-28",
+            scope="team",
+        )
+        self.assertEqual(stats["trades"], 1)
+        self.assertEqual(stats["mood_patterns"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
