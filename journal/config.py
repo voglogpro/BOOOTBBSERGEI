@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 
 
 TOKEN_ENV_NAMES = ("BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "API_TOKEN", "TOKEN")
+BOT_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,64}$")
 
 
 def _bot_token() -> str:
@@ -53,6 +55,7 @@ def _ids(value: str | None) -> frozenset[int]:
 class Settings:
     bot_token: str
     database_path: Path
+    bot_username: str = ""
     port: int = 8080
     max_auth_age_seconds: int = 86400
     allowed_user_ids: frozenset[int] = frozenset()
@@ -83,16 +86,20 @@ class Settings:
         port = int(os.getenv("PORT", "8080"))
         max_age = int(os.getenv("MAX_AUTH_AGE_SECONDS", "86400"))
         dev_user_id = int(os.getenv("DEV_USER_ID", "100001"))
+        bot_username = os.getenv("BOT_USERNAME", os.getenv("TELEGRAM_BOT_USERNAME", "")).strip().lstrip("@")
         if not 1 <= port <= 65535:
             raise ValueError("PORT must be between 1 and 65535")
         if max_age < 60:
             raise ValueError("MAX_AUTH_AGE_SECONDS must be at least 60")
         if dev_user_id <= 0:
             raise ValueError("DEV_USER_ID must be positive")
+        if bot_username and not BOT_USERNAME_RE.fullmatch(bot_username):
+            raise ValueError("BOT_USERNAME must contain only letters, numbers and underscores")
 
         return cls(
             bot_token=bot_token,
             database_path=database_path,
+            bot_username=bot_username,
             port=port,
             max_auth_age_seconds=max_age,
             allowed_user_ids=_ids(os.getenv("ALLOWED_USER_IDS")),

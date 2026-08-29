@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Вход в синхронизированный торговый журнал через Telegram.">
+  <meta name="theme-color" content="#f4f5f6">
+  <title>Вход · Торговый журнал</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/login-client" defer></script>
+</head>
+<body class="web-login-page">
+  <main class="web-login-shell">
+    <section class="web-login-brand">
+      <div class="journal-mark" aria-hidden="true"><i></i><i></i><i></i></div>
+      <span class="overline">Торговый журнал</span>
+      <h1>Один журнал.<br>На телефоне и компьютере.</h1>
+      <p>Сделки, планы и аналитика хранятся в одном аккаунте и появляются на обоих устройствах.</p>
+      <div class="sync-visual" aria-hidden="true"><span>Mini App</span><i></i><span>Сайт</span></div>
+    </section>
+    <section class="web-login-card">
+      <span class="overline">Без нового пароля</span>
+      <h2>Войти через Telegram</h2>
+      <p>{{SETUP_COPY}}</p>
+      <p class="login-error">{{ERROR_COPY}}</p>
+      <div class="telegram-login-slot">{{TELEGRAM_WIDGET}}</div>
+      <div class="login-security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v10H5z"/></svg><span>Сайт не получает пароль или сообщения Telegram. Вход подтверждается подписью Telegram.</span></div>
+    </section>
+  </main>
+</body>
+</html>

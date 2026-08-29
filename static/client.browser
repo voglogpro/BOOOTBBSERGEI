@@ -85,6 +85,10 @@ async function api(path, options = {}) {
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...options, headers });
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 401 && !tg?.initData) {
+    window.location.replace("/login");
+    return await new Promise(() => {});
+  }
   if (!response.ok) throw new Error(payload.message || `Ошибка ${response.status}`);
   return payload;
 }
@@ -120,7 +124,7 @@ function showFatal(error) {
 }
 
 function applyTelegramTheme() {
-  if (!tg) return;
+  if (!tg?.initData) { document.documentElement.classList.add("web-mode"); return; }
   try {
     tg.ready(); tg.expand();
     if (tg.isVersionAtLeast?.("6.1")) { tg.setHeaderColor("bg_color"); tg.setBackgroundColor("bg_color"); }
@@ -502,6 +506,12 @@ async function exportCsv() {
   });
 }
 
+async function websiteLogout() {
+  const response = await fetch("/auth/logout", { method: "POST" });
+  if (!response.ok) throw new Error("Не удалось выйти из сайта");
+  window.location.replace("/login");
+}
+
 function setScope(group, value) {
   $$(`[data-scope-control="${group}"] button`).forEach((button) => { const active = button.dataset.scope === value; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
 }
@@ -509,6 +519,7 @@ function setScope(group, value) {
 function showRequestError(error) { console.error(error); notifyError(); toast(error.message || "Не удалось выполнить действие", 4200); }
 
 function bindEvents() {
+  $("#web-logout").classList.toggle("hidden", Boolean(tg?.initData));
   $$(".bottom-nav button").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
   $("#profile-shortcut").addEventListener("click", () => switchView("profile"));
   for (const selector of ["#new-trade-primary", "#open-trade-button", "#floating-trade-button"]) $(selector).addEventListener("click", () => openTradeDialog());
@@ -536,6 +547,7 @@ function bindEvents() {
   $("#create-team-form").addEventListener("submit", (event) => createTeam(event).catch(showRequestError)); $("#join-team-form").addEventListener("submit", (event) => joinTeam(event).catch(showRequestError));
   $("#copy-invite").addEventListener("click", () => copyInvite().catch(showRequestError)); $("#leave-team").addEventListener("click", () => leaveTeam().catch(showRequestError));
   $("#export-button").addEventListener("click", () => exportCsv().catch(showRequestError)); $("#retry-button").addEventListener("click", () => window.location.reload());
+  $("#web-logout").addEventListener("click", () => websiteLogout().catch(showRequestError));
   tg?.onEvent?.("themeChanged", applyTelegramTheme);
 }
 

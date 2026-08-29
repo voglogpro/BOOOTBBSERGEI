@@ -1,0 +1,17 @@
+"use strict";
+
+const slot = document.querySelector(".telegram-login-slot");
+if (slot) {
+  const labelFrame = () => {
+    const frame = slot.querySelector("iframe");
+    if (!frame) return false;
+    frame.title = "Вход через Telegram";
+    return true;
+  };
+  if (!labelFrame()) {
+    const observer = new MutationObserver(() => {
+      if (labelFrame()) observer.disconnect();
+    });
+    observer.observe(slot, { childList: true, subtree: true });
+  }
+}
