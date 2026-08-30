@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS trades (
     outcome_type TEXT NOT NULL DEFAULT '' CHECK (outcome_type IN ('', 'take', 'stop', 'breakeven', 'manual', 'cancelled')),
     weekly_plan_id INTEGER REFERENCES weekly_plans(id) ON DELETE SET NULL,
     idea_followed INTEGER CHECK (idea_followed IS NULL OR idea_followed IN (0, 1)),
+    countertrend_confirmed INTEGER CHECK (countertrend_confirmed IS NULL OR countertrend_confirmed IN (0, 1)),
     entry_price REAL,
     stop_loss REAL,
     take_profit REAL,
@@ -178,6 +179,7 @@ MIGRATION_COLUMNS = {
         "outcome_type": "TEXT NOT NULL DEFAULT '' CHECK (outcome_type IN ('', 'take', 'stop', 'breakeven', 'manual', 'cancelled'))",
         "weekly_plan_id": "INTEGER",
         "idea_followed": "INTEGER CHECK (idea_followed IS NULL OR idea_followed IN (0, 1))",
+        "countertrend_confirmed": "INTEGER CHECK (countertrend_confirmed IS NULL OR countertrend_confirmed IN (0, 1))",
         "circle_id": "INTEGER",
     },
 }

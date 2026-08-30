@@ -24,16 +24,23 @@
     <main>
       <section id="view-today" class="view active" aria-labelledby="today-nav">
         <div class="screen-heading"><div><span id="today-label" class="overline">Сегодня</span><h1 id="greeting">Добрый день</h1></div><span id="challenge-badge" class="account-badge">Challenge</span></div>
-        <section class="weekly-board" aria-labelledby="weekly-board-title"><div class="weekly-board-heading"><div><span class="overline">Главный ориентир</span><h2 id="weekly-board-title">План недели</h2><p><span id="weekly-range">Текущая неделя</span><button id="weekly-current" class="text-button hidden" type="button">Вернуться к текущей</button></p></div><div class="weekly-controls"><button id="weekly-prev" class="icon-button ghost" type="button" aria-label="Предыдущая неделя"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><button id="add-weekly-plan" class="icon-button weekly-add" type="button" aria-label="Добавить идею на неделю"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button id="weekly-next" class="icon-button ghost" type="button" aria-label="Следующая неделя"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div><div id="weekly-plan-list" class="weekly-plan-list"></div></section>
+        <section class="journal-period" aria-labelledby="journal-week-title">
+          <div class="month-switcher"><button id="journal-month-prev" class="icon-button ghost" type="button" aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><label><span>Месяц</span><input id="journal-month" type="month" aria-label="Выбрать месяц"></label><button id="journal-month-next" class="icon-button ghost" type="button" aria-label="Следующий месяц"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+          <div class="period-overview"><div><span class="overline">Торговая неделя</span><h2 id="journal-week-title">Текущая неделя</h2></div><div class="week-result"><span>Итог недели</span><strong id="journal-week-pnl" class="money">0 $</strong></div></div>
+          <div id="journal-week-list" class="journal-week-list" aria-label="Недели месяца"></div>
+          <div id="journal-day-list" class="journal-day-list" aria-label="Дни торговой недели"></div>
+          <div class="period-score"><span>Выбранный день<strong id="journal-day-pnl" class="money">0 $</strong></span><span>Следование идее<strong id="journal-idea-rate">—</strong></span><span>Сделок за неделю<strong id="journal-week-trades">0</strong></span></div>
+        </section>
+        <section class="weekly-board" aria-labelledby="weekly-board-title"><div class="weekly-board-heading"><div><span class="overline">Главный ориентир</span><h2 id="weekly-board-title">Идея недели</h2><p id="weekly-range">Для выбранной торговой недели</p></div><button id="add-weekly-plan" class="icon-button weekly-add" type="button" aria-label="Добавить идею на неделю"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><div id="weekly-plan-list" class="weekly-plan-list"></div></section>
         <article class="daily-ledger">
-          <div class="ledger-top"><div><span>Результат дня</span><strong id="today-pnl" class="money">0 $</strong></div><div class="day-streak"><span>Серия журнала</span><strong><b id="streak-value">0</b> дн.</strong></div></div>
+          <div class="ledger-top"><div><span>Результат выбранного дня</span><strong id="today-pnl" class="money">0 $</strong></div><div class="day-streak"><span>Серия журнала</span><strong><b id="streak-value">0</b> дн.</strong></div></div>
           <div class="limit-block"><div class="limit-copy"><span>Запас дневного лимита</span><strong id="daily-limit-copy">—</strong></div><div class="limit-track" aria-hidden="true"><i id="daily-limit-bar"></i></div></div>
           <div class="ledger-metrics"><div><span>Риск в сделках</span><strong id="risk-used">0 $</strong></div><div><span>Сделок</span><strong id="today-trades-count">0</strong></div><div><span>По плану</span><strong id="plan-rate">—</strong></div></div>
         </article>
         <button id="new-trade-primary" class="button primary full action-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Записать сделку</button>
 
         <article class="panel checkin-panel plan-card">
-          <div class="panel-heading"><div><span class="overline">Перед торговлей</span><h2>План на сегодня</h2></div><span id="mood-saved" class="saved-mark hidden">План готов</span></div>
+          <div class="panel-heading"><div><span class="overline">Перед торговлей</span><h2>План на выбранный день</h2></div><span id="mood-saved" class="saved-mark hidden">План готов</span></div>
           <div id="plan-summary" class="plan-summary hidden">
             <div class="plan-summary-main"><div class="plan-tags"><span id="plan-mode-mark" class="plan-mode-mark">Бэктест</span><span id="plan-bias-mark" class="plan-bias-mark">Нейтрально</span><span id="plan-state-mark" class="plan-state-mark">Ровно</span></div><strong id="plan-idea-copy">Идея дня пока не записана</strong><small id="plan-focus-copy">Работать только по подтверждённому сценарию</small></div>
             <div class="plan-summary-limits"><span>Риск<strong id="summary-risk-limit">—</strong></span><span>Сделок максимум<strong id="summary-trades-limit">—</strong></span></div>
@@ -51,7 +58,7 @@
             <button class="button primary full plan-submit" type="submit">Зафиксировать план</button>
           </form>
         </article>
-        <div class="section-heading"><div><span class="overline">Лента</span><h2>Сделки сегодня</h2></div><button id="open-trade-button" class="icon-button" type="button" aria-label="Добавить сделку"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><div id="today-trades" class="trade-list"></div>
+        <div class="section-heading"><div><span class="overline">Лента дня</span><h2 id="day-trades-title">Сделки за выбранный день</h2></div><button id="open-trade-button" class="icon-button" type="button" aria-label="Добавить сделку"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div><div id="today-trades" class="trade-list"></div>
       </section>
 
       <section id="view-calendar" class="view" aria-labelledby="calendar-nav">
@@ -94,6 +101,7 @@
         <div class="form-grid two"><label class="field">Режим<select name="journal_mode"><option value="backtest" selected>Бэктест</option><option value="demo">Демо</option><option value="live">Реальная торговля</option></select></label><label class="field">Дата и время<input name="traded_at" type="datetime-local" required></label></div>
         <div class="form-grid two"><label class="field">Инструмент<input name="symbol" maxlength="20" value="XAUUSD" required></label><label class="field">Направление<select name="direction"><option value="BUY">Buy / Long</option><option value="SELL">Sell / Short</option></select></label></div>
         <label class="field weekly-link-field">Идея недели<select name="weekly_plan_id"><option value="">Без недельного плана</option></select><small id="weekly-link-hint">План подберётся автоматически по инструменту.</small></label>
+        <aside id="trend-guard" class="trend-guard" data-state="none"><span id="trend-guard-icon" aria-hidden="true">→</span><div><strong id="trend-guard-title">Выберите недельную идею</strong><p id="trend-guard-copy">Журнал сверит направление сделки с главным сценарием.</p><label id="countertrend-confirm" class="countertrend-confirm hidden"><input name="countertrend_confirmed" type="checkbox"><span>Подтверждение разворота получено</span></label></div></aside>
         <label class="field">Сетап<input name="setup" maxlength="160" list="setup-suggestions" placeholder="Например: снятие ликвидности"><datalist id="setup-suggestions"><option value="Ретест уровня"><option value="Снятие ликвидности"><option value="Пробой и закрепление"><option value="Отбой от зоны"></datalist></label>
         <label class="field strong-field">План сделки<textarea name="trade_plan" rows="3" maxlength="1200" placeholder="Почему движение должно произойти? Какой сценарий я торгую?"></textarea></label>
         <div class="form-grid two"><label class="field">Триггер входа<textarea name="entry_trigger" rows="2" maxlength="500" placeholder="Что должно случиться для входа?"></textarea></label><label class="field">Отмена сделки<textarea name="trade_invalidation" rows="2" maxlength="500" placeholder="При каком условии не вхожу?"></textarea></label></div>

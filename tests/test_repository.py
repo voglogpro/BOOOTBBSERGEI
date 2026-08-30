@@ -176,6 +176,25 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
                 symbol="EURUSD", weekly_plan_id=plan["id"], idea_followed=1,
             ))
 
+    async def test_countertrend_trade_requires_reversal_confirmation(self) -> None:
+        plan = await self.repo.save_weekly_plan(self.owner["id"], {
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "Тренд вверх", "idea": "Покупки", "trade_plan": "По тренду",
+            "invalidation": "Смена структуры", "status": "active", "week_summary": "",
+            "week_lesson": "", "rating": None, "visibility": "private",
+        })
+        with self.assertRaises(RepositoryError):
+            await self.repo.create_trade(self.owner["id"], self.trade(
+                direction="SELL", weekly_plan_id=plan["id"],
+                countertrend_confirmed=0,
+            ))
+
+        trade = await self.repo.create_trade(self.owner["id"], self.trade(
+            direction="SELL", weekly_plan_id=plan["id"],
+            countertrend_confirmed=1,
+        ))
+        self.assertEqual(trade["countertrend_confirmed"], 1)
+
     async def test_private_weekly_plan_details_are_not_exposed_with_shared_trade(self) -> None:
         circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
         await self.repo.join_circle(self.friend["id"], circle["invite_code"])
@@ -200,6 +219,7 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(visible), 1)
         self.assertEqual(visible[0]["weekly_plan_title"], "")
         self.assertEqual(visible[0]["weekly_plan_symbol"], "")
+        self.assertEqual(visible[0]["weekly_plan_bias"], "")
         with self.assertRaises(RepositoryError):
             await self.repo.get_weekly_plan_image(self.friend["id"], image["id"])
 

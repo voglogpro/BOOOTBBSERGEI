@@ -137,6 +137,13 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(weekly["idea_rate"], 100.0)
         self.assertEqual(weekly["days"][0]["day"], "2026-08-28")
 
+        response = await self.client.get(
+            "/api/calendar?from=2026-08-24&to=2026-08-30"
+        )
+        day = (await response.json())["days"][0]
+        self.assertEqual(day["idea_followed"], 1)
+        self.assertEqual(day["idea_broken"], 0)
+
     async def test_bootstrap_uses_client_local_date(self) -> None:
         await self.client.put("/api/moods/2030-01-02", json={
             "mood": 4, "energy": 4, "confidence": 3, "discipline": 5,
@@ -145,6 +152,20 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.get("/api/bootstrap?date=2030-01-02")
         self.assertEqual(response.status, 200)
         self.assertEqual((await response.json())["today_mood"]["mood"], 4)
+
+    async def test_calendar_accepts_a_bounded_period_for_week_navigation(self) -> None:
+        response = await self.client.get(
+            "/api/calendar?from=2026-08-31&to=2026-10-04"
+        )
+        payload = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["from"], "2026-08-31")
+        self.assertEqual(payload["to"], "2026-10-04")
+
+        response = await self.client.get(
+            "/api/calendar?from=2026-01-01&to=2026-04-01"
+        )
+        self.assertEqual(response.status, 400)
 
     async def test_health_does_not_require_telegram_auth(self) -> None:
         response = await self.client.get("/health")

@@ -54,7 +54,7 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
                 {"status", "client_entry_id", "session", "grade", "market_context",
                  "journal_mode", "confidence_before", "trade_plan", "entry_trigger",
                  "trade_invalidation", "outcome_type", "weekly_plan_id",
-                 "idea_followed", "circle_id"}
+                 "idea_followed", "countertrend_confirmed", "circle_id"}
                 <= trade_columns
             )
             self.assertTrue({"weekly_plans", "weekly_plan_images"} <= tables)

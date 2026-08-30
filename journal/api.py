@@ -216,6 +216,13 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         idea_followed = 1 if idea_followed_raw else 0
     else:
         raise ApiError("Некорректная отметка следования недельной идее")
+    countertrend_raw = payload.get("countertrend_confirmed")
+    if countertrend_raw in (None, ""):
+        countertrend_confirmed = None
+    elif isinstance(countertrend_raw, bool):
+        countertrend_confirmed = 1 if countertrend_raw else 0
+    else:
+        raise ApiError("Некорректная отметка подтверждения разворота")
 
     positive_values = {}
     for key in ("entry_price", "stop_loss", "take_profit", "volume", "risk_amount"):
@@ -254,6 +261,7 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "outcome_type": outcome_type,
         "weekly_plan_id": int(weekly_plan_id) if weekly_plan_id is not None else None,
         "idea_followed": idea_followed,
+        "countertrend_confirmed": countertrend_confirmed,
         **positive_values,
         "pnl": pnl,
         "r_multiple": r_multiple,
@@ -365,25 +373,36 @@ async def delete_trade(request: web.Request) -> web.Response:
 
 
 async def calendar(request: web.Request) -> web.Response:
-    month = request.query.get("month", date.today().strftime("%Y-%m"))
-    if not MONTH_RE.fullmatch(month):
-        raise ApiError("Месяц должен быть в формате YYYY-MM")
-    try:
-        first = date.fromisoformat(f"{month}-01")
-    except ValueError as exc:
-        raise ApiError("Некорректный месяц") from exc
-    if first.month == 12:
-        next_month = date(first.year + 1, 1, 1)
+    if "from" in request.query or "to" in request.query:
+        start = date.fromisoformat(_date(request.query.get("from", "")))
+        end = date.fromisoformat(_date(request.query.get("to", "")))
+        if start > end:
+            raise ApiError("Начальная дата позже конечной")
+        if (end - start).days > 62:
+            raise ApiError("Обзор календаря не может превышать 63 дня")
+        month = start.strftime("%Y-%m")
     else:
-        next_month = date(first.year, first.month + 1, 1)
-    last = next_month - timedelta(days=1)
+        month = request.query.get("month", date.today().strftime("%Y-%m"))
+        if not MONTH_RE.fullmatch(month):
+            raise ApiError("Месяц должен быть в формате YYYY-MM")
+        try:
+            start = date.fromisoformat(f"{month}-01")
+        except ValueError as exc:
+            raise ApiError("Некорректный месяц") from exc
+        if start.month == 12:
+            next_month = date(start.year + 1, 1, 1)
+        else:
+            next_month = date(start.year, start.month + 1, 1)
+        end = next_month - timedelta(days=1)
     days = await _repo(request).calendar(
         _user(request)["id"],
-        start_date=first.isoformat(),
-        end_date=last.isoformat(),
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
         scope=_scope(request),
     )
-    return web.json_response({"month": month, "days": days})
+    return web.json_response(
+        {"month": month, "from": start.isoformat(), "to": end.isoformat(), "days": days}
+    )
 
 
 async def stats(request: web.Request) -> web.Response:
@@ -552,6 +571,7 @@ async def export_trades(request: web.Request) -> web.Response:
         "day_lesson",
         "weekly_plan_id", "weekly_plan_title", "weekly_plan_idea",
         "weekly_plan_trade_plan", "weekly_plan_invalidation", "idea_followed",
+        "countertrend_confirmed",
     ]
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")

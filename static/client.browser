@@ -4,6 +4,7 @@ const tg = window.Telegram?.WebApp;
 const state = {
   user: null, circle: null, settings: null, bootstrap: null, trades: [],
   weeklyPlans: [], currentWeeklyPlans: [], weeklyWeek: null, editingWeeklyPlan: null,
+  journalDay: null, journalMonth: null, journalPeriodDays: new Map(), journalRequest: 0,
   calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   calendarScope: "me", statsScope: "me", calendarDays: new Map(),
   selectedDay: null, dayTrades: [], calendarRequest: 0, dayRequest: 0,
@@ -28,6 +29,28 @@ function weekStartISO(value = todayISO()) {
   const offset = (selected.getDay() + 6) % 7;
   selected.setDate(selected.getDate() - offset);
   return `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}-${String(selected.getDate()).padStart(2, "0")}`;
+}
+
+function addDaysISO(value, amount) {
+  const selected = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+  selected.setDate(selected.getDate() + amount);
+  return `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}-${String(selected.getDate()).padStart(2, "0")}`;
+}
+
+function monthISO(value = todayISO()) { return String(value).slice(0, 7); }
+
+function monthGridRange(month) {
+  const [year, number] = month.split("-").map(Number);
+  const first = `${year}-${String(number).padStart(2, "0")}-01`;
+  const lastDate = new Date(year, number, 0);
+  const last = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, "0")}-${String(lastDate.getDate()).padStart(2, "0")}`;
+  return { start: weekStartISO(first), end: addDaysISO(weekStartISO(last), 6) };
+}
+
+function weeksInMonth(month) {
+  const range = monthGridRange(month); const weeks = [];
+  for (let value = range.start; value <= range.end; value = addDaysISO(value, 7)) weeks.push(value);
+  return weeks;
 }
 
 function entryId() {
@@ -140,13 +163,14 @@ function applyTelegramTheme() {
 }
 
 async function loadBootstrap() {
-  const data = await api(`/api/bootstrap?date=${todayISO()}`);
+  const selectedDay = state.journalDay || todayISO();
+  const data = await api(`/api/bootstrap?date=${selectedDay}`);
   state.bootstrap = data; state.user = data.user; state.circle = data.circle;
   state.settings = data.settings; state.trades = data.today_trades || [];
   state.currentWeeklyPlans = data.weekly_plans || [];
-  if (!state.weeklyWeek) state.weeklyWeek = weekStartISO();
-  if (state.weeklyWeek === weekStartISO()) state.weeklyPlans = state.currentWeeklyPlans;
-  renderHeader(); renderWeeklyPlans(); renderToday(); populateMood(data.today_mood); populateSettings(); renderTeam();
+  state.journalDay = selectedDay; state.weeklyWeek = weekStartISO(selectedDay);
+  state.weeklyPlans = state.currentWeeklyPlans;
+  renderHeader(); renderPeriodNavigator(); renderWeeklyPlans(); renderToday(); populateMood(data.today_mood); populateSettings(); renderTeam();
   if (!data.today_mood && !data.circle) $("#mood-form").elements.visibility.value = "private";
 }
 
@@ -154,7 +178,8 @@ function renderHeader() {
   const name = displayName(state.user).split(" ")[0];
   const hour = new Date().getHours();
   $("#greeting").textContent = `${hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер"}, ${name}`;
-  $("#today-label").textContent = formatDate(todayISO(), { weekday: "long", day: "numeric", month: "long" });
+  const selectedDay = state.journalDay || todayISO();
+  $("#today-label").textContent = `${selectedDay === todayISO() ? "Сегодня · " : ""}${formatDate(selectedDay, { weekday: "long", day: "numeric", month: "long" })}`;
   $("#account-caption").textContent = state.settings?.account_name || "Мой счёт";
   $("#challenge-badge").textContent = `Цель ${Number(state.settings?.profit_target_pct || 0)}%`;
   const avatar = $("#user-avatar");
@@ -180,6 +205,97 @@ async function hydrateProtectedImages(root = document) {
   }));
 }
 
+function tradingWeekTitle(weekStart) {
+  const end = addDaysISO(weekStart, 4);
+  const startCopy = formatDate(weekStart, { day: "numeric", month: "short" }).replace(".", "");
+  const endCopy = formatDate(end, { day: "numeric", month: "short" }).replace(".", "");
+  return `${startCopy} — ${endCopy}`;
+}
+
+function periodWeekStats(weekStart) {
+  const result = { pnl: 0, trades: 0, followed: 0, broken: 0 };
+  for (let index = 0; index < 7; index += 1) {
+    const item = state.journalPeriodDays.get(addDaysISO(weekStart, index));
+    result.pnl += Number(item?.pnl || 0); result.trades += Number(item?.trades || 0);
+    result.followed += Number(item?.idea_followed || 0); result.broken += Number(item?.idea_broken || 0);
+  }
+  return result;
+}
+
+function renderPeriodNavigator() {
+  if (!state.journalMonth) state.journalMonth = monthISO(state.journalDay || todayISO());
+  const weekStart = state.weeklyWeek || weekStartISO(state.journalDay || todayISO());
+  const selectedDay = state.journalDay || todayISO(); const week = periodWeekStats(weekStart);
+  const day = state.journalPeriodDays.get(selectedDay) || { pnl: state.trades.reduce((sum, trade) => sum + (trade.status === "closed" ? Number(trade.pnl || 0) : 0), 0) };
+  const marked = week.followed + week.broken; const ideaRate = marked ? Math.round(week.followed / marked * 100) : null;
+  $("#journal-month").value = state.journalMonth;
+  $("#journal-week-title").textContent = tradingWeekTitle(weekStart);
+  $("#weekly-range").textContent = `Неделя ${tradingWeekTitle(weekStart)}`;
+  $("#journal-week-pnl").textContent = formatMoney(week.pnl, true);
+  $("#journal-week-pnl").className = `money ${week.pnl > 0 ? "positive" : week.pnl < 0 ? "negative" : ""}`;
+  $("#journal-day-pnl").textContent = formatMoney(day.pnl, true);
+  $("#journal-day-pnl").className = `money ${Number(day.pnl) > 0 ? "positive" : Number(day.pnl) < 0 ? "negative" : ""}`;
+  $("#journal-idea-rate").textContent = ideaRate == null ? "Нет отметок" : `${ideaRate}%`;
+  $("#journal-week-trades").textContent = week.trades;
+
+  const weeks = weeksInMonth(state.journalMonth);
+  $("#journal-week-list").innerHTML = weeks.map((start) => {
+    const stats = periodWeekStats(start); const pnl = Number(stats.pnl || 0);
+    return `<button class="journal-week-chip ${start === weekStart ? "active" : ""}" data-journal-week="${start}" type="button"><strong>${tradingWeekTitle(start)}</strong><small class="${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${stats.trades ? formatMoney(pnl, true) : "Нет сделок"}</small></button>`;
+  }).join("");
+
+  const labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  $("#journal-day-list").innerHTML = labels.map((label, index) => {
+    const value = addDaysISO(weekStart, index); const info = state.journalPeriodDays.get(value); const pnl = Number(info?.pnl || 0);
+    return `<button class="journal-day ${value === selectedDay ? "active" : ""} ${value === todayISO() ? "today" : ""}" data-journal-day="${value}" type="button" aria-label="${escapeHtml(formatDate(value, { weekday: "long", day: "numeric", month: "long" }))}"><span>${label}</span><strong>${Number(value.slice(8, 10))}</strong><small class="${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${info?.trades ? `${pnl > 0 ? "+" : ""}${Math.round(pnl)}` : "—"}</small></button>`;
+  }).join("");
+  $$("[data-journal-week]").forEach((button) => button.addEventListener("click", () => selectJournalWeek(button.dataset.journalWeek).catch(showRequestError)));
+  $$("[data-journal-day]").forEach((button) => button.addEventListener("click", () => selectJournalDay(button.dataset.journalDay).catch(showRequestError)));
+}
+
+async function loadJournalPeriod(month = state.journalMonth || monthISO()) {
+  const requestId = ++state.journalRequest; const range = monthGridRange(month);
+  const data = await api(`/api/calendar?from=${range.start}&to=${range.end}&scope=me`);
+  if (requestId !== state.journalRequest) return;
+  state.journalMonth = month; state.journalPeriodDays = new Map((data.days || []).map((item) => [item.day, item]));
+  renderPeriodNavigator();
+}
+
+async function refreshJournalData() {
+  await loadBootstrap();
+  await loadJournalPeriod(state.journalMonth || monthISO(state.journalDay || todayISO()));
+}
+
+async function selectJournalDay(day) {
+  if (state.dirty && !(await askConfirm("Перейти к другому дню без сохранения?"))) return;
+  setDirty(false); state.journalDay = day; state.weeklyWeek = weekStartISO(day);
+  await loadBootstrap(); haptic(); window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function selectJournalWeek(week) {
+  if (state.dirty && !(await askConfirm("Перейти к другой неделе без сохранения?"))) return;
+  setDirty(false);
+  const current = state.journalDay || todayISO();
+  state.journalDay = current >= week && current <= addDaysISO(week, 6) ? current : week;
+  state.weeklyWeek = week; await loadBootstrap(); haptic();
+}
+
+async function selectJournalMonth(month) {
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  if (state.dirty && !(await askConfirm("Перейти к другому месяцу без сохранения?"))) return;
+  setDirty(false);
+  await loadJournalPeriod(month);
+  const preferred = month === monthISO(todayISO()) ? todayISO() : `${month}-01`;
+  state.journalDay = preferred; state.weeklyWeek = weekStartISO(preferred);
+  await loadBootstrap(); haptic();
+}
+
+async function shiftJournalMonth(offset) {
+  const [year, month] = (state.journalMonth || monthISO()).split("-").map(Number);
+  const target = new Date(year, month - 1 + offset, 1);
+  await selectJournalMonth(`${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`);
+}
+
 function weeklyDays(plan) {
   const values = new Map((plan.days || []).map((item) => [item.day, item]));
   const start = new Date(`${plan.week_start}T12:00:00`);
@@ -194,20 +310,21 @@ function weeklyDays(plan) {
 
 function weeklyPlanCard(plan) {
   const bias = ({ LONG: "Покупки", SHORT: "Продажи", NEUTRAL: "Нейтрально" })[plan.bias] || "Нейтрально";
+  const focusRule = plan.bias === "LONG"
+    ? "Основной фокус — покупки. Продажа только после подтверждённого разворота."
+    : plan.bias === "SHORT"
+      ? "Основной фокус — продажи. Покупка только после подтверждённого разворота."
+      : "Направление выбирается только после подтверждения сценария.";
   const rate = plan.idea_rate == null ? null : Number(plan.idea_rate);
   const rateClass = rate == null ? "" : rate >= 80 ? "followed" : rate < 50 ? "broken" : "";
   const gallery = plan.images?.length
     ? `<div class="weekly-card-gallery has-images">${plan.images.map((item) => `<img data-protected-src="${escapeHtml(item.url)}" alt="График ${escapeHtml(plan.symbol)}">`).join("")}</div>`
     : "";
   const review = plan.status === "reviewed" && plan.week_summary ? `<div class="weekly-review-copy"><span>Итог недели${plan.rating ? ` · ${plan.rating}/5` : ""}</span><p>${escapeHtml(plan.week_summary)}</p></div>` : "";
-  return `<button class="weekly-plan-card" data-weekly-plan-id="${plan.id}" type="button">${gallery}<div class="weekly-card-content"><div class="weekly-card-top"><strong class="weekly-symbol">${escapeHtml(plan.symbol)} <span class="bias-badge" data-bias="${escapeHtml(plan.bias)}">${bias}</span></strong><span class="idea-badge ${rateClass}">${rate == null ? "Нет отметок" : `${rate}% по идее`}</span></div><h3>${escapeHtml(plan.title || "Торговая идея")}${plan.status === "reviewed" ? ' <span class="reviewed-badge">Итог готов</span>' : ""}</h3><p class="weekly-card-idea">${escapeHtml(plan.idea)}</p><div class="weekly-card-metrics"><span>Итог недели<strong class="${Number(plan.pnl) > 0 ? "positive" : Number(plan.pnl) < 0 ? "negative" : ""}">${formatMoney(plan.pnl, true)}</strong></span><span>Сделок<strong>${plan.trades || 0}</strong></span><span>По идее<strong>${plan.idea_followed || 0} / ${(plan.idea_followed || 0) + (plan.idea_broken || 0)}</strong></span></div><div class="weekly-days">${weeklyDays(plan)}</div>${review}</div></button>`;
+  return `<button class="weekly-plan-card" data-weekly-plan-id="${plan.id}" type="button">${gallery}<div class="weekly-card-content"><div class="weekly-card-top"><strong class="weekly-symbol">${escapeHtml(plan.symbol)} <span class="bias-badge" data-bias="${escapeHtml(plan.bias)}">${bias}</span></strong><span class="idea-badge ${rateClass}">${rate == null ? "Нет отметок" : `${rate}% по идее`}</span></div><h3>${escapeHtml(plan.title || "Торговая идея")}${plan.status === "reviewed" ? ' <span class="reviewed-badge">Итог готов</span>' : ""}</h3><p class="weekly-card-idea">${escapeHtml(plan.idea)}</p><div class="weekly-focus-rule"><span>${plan.bias === "LONG" ? "↑" : plan.bias === "SHORT" ? "↓" : "→"}</span><p><b>Правило фокуса</b>${focusRule}</p></div><div class="weekly-card-metrics"><span>Итог недели<strong class="${Number(plan.pnl) > 0 ? "positive" : Number(plan.pnl) < 0 ? "negative" : ""}">${formatMoney(plan.pnl, true)}</strong></span><span>Сделок<strong>${plan.trades || 0}</strong></span><span>По идее<strong>${plan.idea_followed || 0} / ${(plan.idea_followed || 0) + (plan.idea_broken || 0)}</strong></span></div><div class="weekly-days">${weeklyDays(plan)}</div>${review}</div></button>`;
 }
 
 function renderWeeklyPlans() {
-  const shownWeek = state.weeklyWeek || weekStartISO();
-  const start = new Date(`${shownWeek}T12:00:00`); const end = new Date(start); end.setDate(start.getDate() + 6);
-  $("#weekly-range").textContent = `${formatDate(shownWeek, { day: "numeric", month: "short" })} — ${formatDate(end.toISOString().slice(0, 10), { day: "numeric", month: "short" })}`;
-  $("#weekly-current").classList.toggle("hidden", shownWeek === weekStartISO());
   const container = $("#weekly-plan-list");
   if (!state.weeklyPlans.length) {
     container.innerHTML = '<button class="weekly-empty" type="button"><i>↗</i><span><strong>Добавьте первую идею недели</strong><small>График, сценарий и результат будут собраны в одном месте.</small></span></button>';
@@ -220,16 +337,6 @@ function renderWeeklyPlans() {
     if (plan) openWeeklyPlanDialog(plan);
   }));
   hydrateProtectedImages(container);
-}
-
-async function loadWeeklyPlans(week) {
-  const target = weekStartISO(week); const data = await api(`/api/weekly-plans?week=${target}`);
-  state.weeklyWeek = data.week_start; state.weeklyPlans = data.plans || []; renderWeeklyPlans();
-}
-
-function shiftedWeek(value, offset) {
-  const current = new Date(`${value}T12:00:00`); current.setDate(current.getDate() + offset * 7);
-  return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
 }
 
 function renderToday() {
@@ -261,7 +368,9 @@ function renderToday() {
   $("#summary-risk-limit").textContent = riskCopy;
   $("#plan-trades-limit").textContent = settings.max_trades_day || "—";
   $("#summary-trades-limit").textContent = settings.max_trades_day || "—";
+  $("#day-trades-title").textContent = `Сделки · ${formatDate(state.journalDay || todayISO(), { day: "numeric", month: "long" })}`;
   renderTradeList($("#today-trades"), state.trades, true);
+  renderPeriodNavigator();
 }
 
 function planState(mood) {
@@ -273,6 +382,8 @@ function planState(mood) {
 function populateMood(mood) {
   const form = $("#mood-form");
   if (!mood) {
+    form.reset();
+    for (const key of ["energy", "confidence", "discipline"]) $(`#${key}-output`).value = form.elements[key].value;
     form.classList.remove("hidden");
     $("#plan-summary").classList.add("hidden");
     $("#mood-saved").classList.add("hidden");
@@ -327,9 +438,10 @@ function tradeRow(trade, animate = true) {
   const ideaMark = trade.weekly_plan_id && trade.idea_followed != null
     ? `<span class="trade-idea-mark ${Number(trade.idea_followed) === 1 ? "" : "broken"}">${Number(trade.idea_followed) === 1 ? "По идее недели" : "Вне идеи недели"}</span>`
     : "";
+  const countertrendMark = Number(trade.countertrend_confirmed) === 1 ? '<span class="trade-idea-mark countertrend">Разворот подтверждён</span>' : "";
   return `<button class="trade-item${animate ? "" : " no-animate"}" data-trade-id="${trade.id}" data-own="${own}" type="button">
     <span class="trade-side ${String(trade.direction).toLowerCase()}">${trade.direction === "BUY" ? "BUY" : "SELL"}</span>
-    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small>${ideaMark}</span>
+    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small>${ideaMark}${countertrendMark}</span>
     <span class="trade-result ${pnl > 0 && trade.status === "closed" ? "positive" : pnl < 0 && trade.status === "closed" ? "negative" : ""}">${result}<small>${trade.r_multiple == null ? tradeStatus(trade) : `${Number(trade.r_multiple).toFixed(2)}R`}</small></span>
   </button>`;
 }
@@ -353,8 +465,8 @@ async function saveMood(event) {
       emotion: data.get("emotion"), note: data.get("note"), focus: data.get("focus"), lesson: data.get("lesson"), visibility: data.get("visibility"),
       journal_mode: data.get("journal_mode"), market_bias: data.get("market_bias"), day_idea: data.get("day_idea"), key_levels: data.get("key_levels"), day_invalidation: data.get("day_invalidation"), news_context: data.get("news_context"),
     };
-    await api(`/api/moods/${todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
-    setDirty(false); haptic(); toast("План на день сохранён"); await loadBootstrap();
+    await api(`/api/moods/${state.journalDay || todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
+    setDirty(false); haptic(); toast("План на день сохранён"); await refreshJournalData();
   });
 }
 
@@ -445,7 +557,10 @@ async function saveWeeklyPlan(event) {
       const uploaded = await api(`/api/weekly-plans/${result.plan.id}/images`, { method: "POST", body });
       state.editingWeeklyPlan.images.push(uploaded.image);
     }
-    setDirty(false); $("#weekly-plan-dialog").close(); await loadBootstrap(); await loadWeeklyPlans(result.plan.week_start); haptic("medium"); toast(id ? "План недели обновлён" : "Идея недели сохранена");
+    setDirty(false); $("#weekly-plan-dialog").close();
+    if (!(state.journalDay >= result.plan.week_start && state.journalDay <= addDaysISO(result.plan.week_start, 6))) state.journalDay = result.plan.week_start;
+    if (!weeksInMonth(state.journalMonth).includes(result.plan.week_start)) state.journalMonth = monthISO(result.plan.week_start);
+    await refreshJournalData(); haptic("medium"); toast(id ? "План недели обновлён" : "Идея недели сохранена");
   });
 }
 
@@ -460,7 +575,7 @@ async function deleteWeeklyPlan() {
   const id = $("#weekly-plan-form").elements.plan_id.value;
   if (!id || !(await askConfirm("Удалить недельный план? Сделки останутся, но связь с идеей будет снята."))) return;
   await pending($("#delete-weekly-plan"), async () => {
-    await api(`/api/weekly-plans/${id}`, { method: "DELETE" }); setDirty(false); $("#weekly-plan-dialog").close(); await loadBootstrap(); await loadWeeklyPlans(state.weeklyWeek); toast("Недельный план удалён");
+    await api(`/api/weekly-plans/${id}`, { method: "DELETE" }); setDirty(false); $("#weekly-plan-dialog").close(); await refreshJournalData(); toast("Недельный план удалён");
   });
 }
 
@@ -497,17 +612,49 @@ function validateTradeStep(step) {
   for (const field of $$("input, select, textarea", panel)) {
     if (!field.disabled && !field.checkValidity()) { field.reportValidity(); return false; }
   }
+  const form = $("#trade-form");
+  if (
+    step === 2 && $("#trend-guard").dataset.state === "counter"
+    && ["open", "closed"].includes(form.elements.status.value)
+    && !form.elements.countertrend_confirmed.checked
+  ) {
+    showRequestError(new Error("Перед контртрендовой сделкой подтвердите разворот"));
+    showTradeStep(1); window.setTimeout(() => form.elements.countertrend_confirmed.focus(), 0); return false;
+  }
   return true;
 }
 
 function populateWeeklyPlanOptions(selected = "", linkedTrade = null) {
   const select = $("#trade-form").elements.weekly_plan_id;
   const options = ['<option value="">Без недельного плана</option>'];
-  for (const plan of state.currentWeeklyPlans) options.push(`<option value="${plan.id}">${escapeHtml(plan.symbol)} · ${escapeHtml(plan.title || "Идея недели")}</option>`);
+  for (const plan of state.currentWeeklyPlans) options.push(`<option value="${plan.id}" data-bias="${escapeHtml(plan.bias)}">${escapeHtml(plan.symbol)} · ${escapeHtml(plan.title || "Идея недели")}</option>`);
   if (selected && !state.currentWeeklyPlans.some((plan) => String(plan.id) === String(selected))) {
-    options.push(`<option value="${escapeHtml(selected)}">${escapeHtml(linkedTrade?.weekly_plan_symbol || linkedTrade?.symbol || "План")} · ${escapeHtml(linkedTrade?.weekly_plan_title || "Идея прошлой недели")}</option>`);
+    options.push(`<option value="${escapeHtml(selected)}" data-bias="${escapeHtml(linkedTrade?.weekly_plan_bias || "")}">${escapeHtml(linkedTrade?.weekly_plan_symbol || linkedTrade?.symbol || "План")} · ${escapeHtml(linkedTrade?.weekly_plan_title || "Идея прошлой недели")}</option>`);
   }
   select.innerHTML = options.join(""); select.value = selected || "";
+}
+
+function updateTrendGuard() {
+  const form = $("#trade-form"); const guard = $("#trend-guard");
+  const option = form.elements.weekly_plan_id.selectedOptions[0]; const bias = option?.dataset.bias || "";
+  const direction = form.elements.direction.value; const expected = bias === "LONG" ? "BUY" : bias === "SHORT" ? "SELL" : "";
+  const counter = Boolean(expected && direction !== expected); const aligned = Boolean(expected && direction === expected);
+  guard.dataset.state = counter ? "counter" : aligned ? "aligned" : "none";
+  $("#countertrend-confirm").classList.toggle("hidden", !counter);
+  if (counter) {
+    $("#trend-guard-title").textContent = "Сделка против недельного направления";
+    $("#trend-guard-copy").textContent = "Не входите только потому, что цена кажется высокой или низкой. Сначала дождитесь подтверждения разворота.";
+    $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
+  } else if (aligned) {
+    $("#trend-guard-title").textContent = "Направление совпадает с идеей недели";
+    $("#trend-guard-copy").textContent = "Теперь проверьте свой сетап, точку отмены и риск.";
+    $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
+    form.elements.countertrend_confirmed.checked = false;
+  } else {
+    $("#trend-guard-title").textContent = bias === "NEUTRAL" ? "Недельный план нейтральный" : "Выберите недельную идею";
+    $("#trend-guard-copy").textContent = bias === "NEUTRAL" ? "Направление определяет подтверждённый сценарий сделки." : "Журнал сверит направление сделки с главным сценарием.";
+    $("#trend-guard-icon").textContent = "→"; form.elements.countertrend_confirmed.checked = false;
+  }
 }
 
 function autoLinkWeeklyPlan(force = false) {
@@ -518,12 +665,13 @@ function autoLinkWeeklyPlan(force = false) {
   if (match && (force || !form.elements.weekly_plan_id.value)) form.elements.weekly_plan_id.value = String(match.id);
   else if (force && !match) form.elements.weekly_plan_id.value = "";
   $("#weekly-link-hint").textContent = match ? `Найден план: ${match.title || match.idea.slice(0, 60)}` : "Для этого инструмента на выбранной неделе плана нет.";
+  updateTrendGuard();
 }
 
 function openTradeDialog(trade = null, readOnly = false) {
   const dialog = $("#trade-dialog"); const form = $("#trade-form");
   form.reset(); setTradeReadOnly(false);
-  form.elements.traded_at.value = localDateTimeValue(); form.elements.symbol.value = "XAUUSD";
+  form.elements.traded_at.value = `${state.journalDay || todayISO()}T${localDateTimeValue().slice(11, 16)}`; form.elements.symbol.value = "XAUUSD";
   form.elements.timeframe.value = "M15"; form.elements.status.value = "closed";
   form.elements.journal_mode.value = state.bootstrap?.today_mood?.journal_mode || "backtest";
   form.elements.confidence_before.value = state.bootstrap?.today_mood?.confidence || 3;
@@ -540,11 +688,12 @@ function openTradeDialog(trade = null, readOnly = false) {
     for (const field of fields) form.elements[field].value = trade[field] ?? "";
     form.elements.plan_followed.value = Number(trade.plan_followed) === 1 ? "true" : "false";
     form.elements.idea_followed.value = trade.idea_followed == null ? "" : Number(trade.idea_followed) === 1 ? "true" : "false";
+    form.elements.countertrend_confirmed.checked = Number(trade.countertrend_confirmed) === 1;
     form.dataset.outcomeChoice = trade.outcome_type || (Number(trade.pnl) > 0 ? "take" : Number(trade.pnl) < 0 ? "stop" : trade.status === "closed" ? "breakeven" : "");
     form.elements.outcome_type.value = form.dataset.outcomeChoice;
     $("#delete-trade").classList.remove("hidden");
   }
-  if (!trade) autoLinkWeeklyPlan();
+  if (!trade) autoLinkWeeklyPlan(); else updateTrendGuard();
   const statusRadio = $(`input[name="status_choice"][value="${form.elements.status.value}"]`, form);
   if (statusRadio) statusRadio.checked = true;
   $("#trade-confidence-output").value = form.elements.confidence_before.value || 3;
@@ -560,6 +709,8 @@ function tradePayload(form) {
   if (payload.status === "closed" && !payload.outcome_type && payload.pnl != null) payload.outcome_type = payload.pnl > 0 ? "take" : payload.pnl < 0 ? "stop" : "breakeven";
   payload.plan_followed = payload.plan_followed === "true";
   payload.idea_followed = payload.idea_followed === "" ? null : payload.idea_followed === "true";
+  payload.countertrend_confirmed = $("#trend-guard").dataset.state === "counter" ? form.elements.countertrend_confirmed.checked : null;
+  if (payload.countertrend_confirmed && payload.idea_followed == null) payload.idea_followed = true;
   return payload;
 }
 
@@ -612,10 +763,12 @@ async function saveTrade(event) {
   event.preventDefault();
   const form = event.currentTarget; const button = $("#save-trade"); const id = form.elements.trade_id.value;
   await pending(button, async () => {
-    await api(id ? `/api/trades/${id}` : "/api/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(tradePayload(form)) });
+    const payload = tradePayload(form);
+    await api(id ? `/api/trades/${id}` : "/api/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
     setDirty(false); $("#trade-dialog").close(); haptic("medium"); toast(id ? "Сделка обновлена" : "Сделка записана");
-    await loadBootstrap();
-    if (state.weeklyWeek !== weekStartISO()) await loadWeeklyPlans(state.weeklyWeek);
+    state.journalDay = String(payload.traded_at).slice(0, 10);
+    if (!weeksInMonth(state.journalMonth).includes(weekStartISO(state.journalDay))) state.journalMonth = monthISO(state.journalDay);
+    await refreshJournalData();
     if (state.currentView === "calendar") { await loadCalendar(); if (state.selectedDay) await selectDay(state.selectedDay); }
   });
 }
@@ -628,8 +781,7 @@ async function confirmDelete() {
   const id = $("#trade-form").elements.trade_id.value;
   if (!id || !(await askConfirm("Удалить эту сделку из журнала?"))) return;
   await pending($("#delete-trade"), async () => {
-    await api(`/api/trades/${id}`, { method: "DELETE" }); setDirty(false); $("#trade-dialog").close(); toast("Сделка удалена"); await loadBootstrap();
-    if (state.weeklyWeek !== weekStartISO()) await loadWeeklyPlans(state.weeklyWeek);
+    await api(`/api/trades/${id}`, { method: "DELETE" }); setDirty(false); $("#trade-dialog").close(); toast("Сделка удалена"); await refreshJournalData();
     if (state.currentView === "calendar") await loadCalendar();
   });
 }
@@ -812,9 +964,9 @@ function bindEvents() {
   $("#weekly-plan-form").addEventListener("submit", (event) => saveWeeklyPlan(event).catch(showRequestError));
   for (const form of [$("#mood-form"), $("#settings-form"), $("#trade-form"), $("#weekly-plan-form")]) form.addEventListener("input", () => setDirty(true));
   $("#add-weekly-plan").addEventListener("click", () => openWeeklyPlanDialog());
-  $("#weekly-prev").addEventListener("click", () => loadWeeklyPlans(shiftedWeek(state.weeklyWeek || weekStartISO(), -1)).catch(showRequestError));
-  $("#weekly-next").addEventListener("click", () => loadWeeklyPlans(shiftedWeek(state.weeklyWeek || weekStartISO(), 1)).catch(showRequestError));
-  $("#weekly-current").addEventListener("click", () => loadWeeklyPlans(weekStartISO()).catch(showRequestError));
+  $("#journal-month-prev").addEventListener("click", () => shiftJournalMonth(-1).catch(showRequestError));
+  $("#journal-month-next").addEventListener("click", () => shiftJournalMonth(1).catch(showRequestError));
+  $("#journal-month").addEventListener("change", (event) => selectJournalMonth(event.target.value).catch(showRequestError));
   $("#weekly-plan-images").addEventListener("change", () => { renderWeeklyImagePreview(); setDirty(true); });
   $("#delete-weekly-plan").addEventListener("click", () => deleteWeeklyPlan().catch(showRequestError));
   $("#close-weekly-plan").addEventListener("click", async () => { if (!state.dirty || await askConfirm("Закрыть недельный план без сохранения?")) { setDirty(false); $("#weekly-plan-dialog").close(); } });
@@ -830,6 +982,11 @@ function bindEvents() {
   $("#trade-confidence").addEventListener("input", (event) => { $("#trade-confidence-output").value = event.target.value; });
   $("#trade-form").elements.symbol.addEventListener("input", () => autoLinkWeeklyPlan(true));
   $("#trade-form").elements.traded_at.addEventListener("change", () => autoLinkWeeklyPlan(true));
+  $("#trade-form").elements.direction.addEventListener("change", updateTrendGuard);
+  $("#trade-form").elements.weekly_plan_id.addEventListener("change", updateTrendGuard);
+  $("#trade-form").elements.countertrend_confirmed.addEventListener("change", (event) => {
+    if (event.target.checked && $("#trade-form").elements.idea_followed.value === "") $("#trade-form").elements.idea_followed.value = "true";
+  });
   $$("input[name='status_choice']").forEach((radio) => radio.addEventListener("change", () => { $("#trade-form").elements.status.value = radio.value; updateTradeStage(); setDirty(true); }));
   $$(".outcome-choice button").forEach((button) => button.addEventListener("click", () => chooseOutcome(button.dataset.outcome)));
   $$("[data-trade-step]").forEach((button) => button.addEventListener("click", () => { const target = Number(button.dataset.tradeStep); if (target <= state.tradeStep || validateTradeStep(state.tradeStep)) showTradeStep(target); }));
@@ -848,5 +1005,8 @@ function bindEvents() {
   tg?.onEvent?.("themeChanged", applyTelegramTheme);
 }
 
-async function start() { applyTelegramTheme(); bindEvents(); await loadBootstrap(); setLoading(false); }
+async function start() {
+  applyTelegramTheme(); state.journalDay = todayISO(); state.journalMonth = monthISO(); bindEvents();
+  await loadBootstrap(); await loadJournalPeriod(state.journalMonth); setLoading(false);
+}
 start().catch(showFatal);
