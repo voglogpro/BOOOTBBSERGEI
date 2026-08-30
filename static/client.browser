@@ -3,6 +3,7 @@
 const tg = window.Telegram?.WebApp;
 const state = {
   user: null, circle: null, settings: null, bootstrap: null, trades: [],
+  weeklyPlans: [], currentWeeklyPlans: [], weeklyWeek: null, editingWeeklyPlan: null,
   calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   calendarScope: "me", statsScope: "me", calendarDays: new Map(),
   selectedDay: null, dayTrades: [], calendarRequest: 0, dayRequest: 0,
@@ -20,6 +21,13 @@ function todayISO() {
 function localDateTimeValue(date = new Date()) {
   const offset = date.getTimezoneOffset();
   return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+}
+
+function weekStartISO(value = todayISO()) {
+  const selected = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+  const offset = (selected.getDay() + 6) % 7;
+  selected.setDate(selected.getDate() - offset);
+  return `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, "0")}-${String(selected.getDate()).padStart(2, "0")}`;
 }
 
 function entryId() {
@@ -82,7 +90,7 @@ function toast(message, timeout = 2600) {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("X-Telegram-Init-Data", tg?.initData || "");
-  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...options, headers });
   const payload = await response.json().catch(() => ({}));
   if (response.status === 401 && !tg?.initData) {
@@ -135,7 +143,10 @@ async function loadBootstrap() {
   const data = await api(`/api/bootstrap?date=${todayISO()}`);
   state.bootstrap = data; state.user = data.user; state.circle = data.circle;
   state.settings = data.settings; state.trades = data.today_trades || [];
-  renderHeader(); renderToday(); populateMood(data.today_mood); populateSettings(); renderTeam();
+  state.currentWeeklyPlans = data.weekly_plans || [];
+  if (!state.weeklyWeek) state.weeklyWeek = weekStartISO();
+  if (state.weeklyWeek === weekStartISO()) state.weeklyPlans = state.currentWeeklyPlans;
+  renderHeader(); renderWeeklyPlans(); renderToday(); populateMood(data.today_mood); populateSettings(); renderTeam();
   if (!data.today_mood && !data.circle) $("#mood-form").elements.visibility.value = "private";
 }
 
@@ -149,6 +160,76 @@ function renderHeader() {
   const avatar = $("#user-avatar");
   avatar.textContent = name.slice(0, 1).toUpperCase();
   if (state.user.photo_url) avatar.style.backgroundImage = `url(${JSON.stringify(state.user.photo_url).slice(1, -1)})`;
+}
+
+async function hydrateProtectedImages(root = document) {
+  const images = $$('img[data-protected-src]', root);
+  await Promise.all(images.map(async (element) => {
+    try {
+      const response = await fetch(element.dataset.protectedSrc, {
+        headers: { "X-Telegram-Init-Data": tg?.initData || "" },
+      });
+      if (!response.ok) throw new Error("image unavailable");
+      const url = URL.createObjectURL(await response.blob());
+      element.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+      element.src = url;
+      element.removeAttribute("data-protected-src");
+    } catch (_) {
+      element.closest("figure")?.classList.add("image-error");
+    }
+  }));
+}
+
+function weeklyDays(plan) {
+  const values = new Map((plan.days || []).map((item) => [item.day, item]));
+  const start = new Date(`${plan.week_start}T12:00:00`);
+  const labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  return labels.map((label, index) => {
+    const current = new Date(start); current.setDate(start.getDate() + index);
+    const day = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+    const item = values.get(day); const pnl = Number(item?.pnl || 0);
+    return `<div class="weekly-day"><span>${label}</span><strong class="${pnl > 0 ? "positive" : pnl < 0 ? "negative" : ""}">${item?.trades ? `${pnl > 0 ? "+" : ""}${Math.round(pnl)}` : "—"}</strong></div>`;
+  }).join("");
+}
+
+function weeklyPlanCard(plan) {
+  const bias = ({ LONG: "Покупки", SHORT: "Продажи", NEUTRAL: "Нейтрально" })[plan.bias] || "Нейтрально";
+  const rate = plan.idea_rate == null ? null : Number(plan.idea_rate);
+  const rateClass = rate == null ? "" : rate >= 80 ? "followed" : rate < 50 ? "broken" : "";
+  const gallery = plan.images?.length
+    ? `<div class="weekly-card-gallery has-images">${plan.images.map((item) => `<img data-protected-src="${escapeHtml(item.url)}" alt="График ${escapeHtml(plan.symbol)}">`).join("")}</div>`
+    : "";
+  const review = plan.status === "reviewed" && plan.week_summary ? `<div class="weekly-review-copy"><span>Итог недели${plan.rating ? ` · ${plan.rating}/5` : ""}</span><p>${escapeHtml(plan.week_summary)}</p></div>` : "";
+  return `<button class="weekly-plan-card" data-weekly-plan-id="${plan.id}" type="button">${gallery}<div class="weekly-card-content"><div class="weekly-card-top"><strong class="weekly-symbol">${escapeHtml(plan.symbol)} <span class="bias-badge" data-bias="${escapeHtml(plan.bias)}">${bias}</span></strong><span class="idea-badge ${rateClass}">${rate == null ? "Нет отметок" : `${rate}% по идее`}</span></div><h3>${escapeHtml(plan.title || "Торговая идея")}${plan.status === "reviewed" ? ' <span class="reviewed-badge">Итог готов</span>' : ""}</h3><p class="weekly-card-idea">${escapeHtml(plan.idea)}</p><div class="weekly-card-metrics"><span>Итог недели<strong class="${Number(plan.pnl) > 0 ? "positive" : Number(plan.pnl) < 0 ? "negative" : ""}">${formatMoney(plan.pnl, true)}</strong></span><span>Сделок<strong>${plan.trades || 0}</strong></span><span>По идее<strong>${plan.idea_followed || 0} / ${(plan.idea_followed || 0) + (plan.idea_broken || 0)}</strong></span></div><div class="weekly-days">${weeklyDays(plan)}</div>${review}</div></button>`;
+}
+
+function renderWeeklyPlans() {
+  const shownWeek = state.weeklyWeek || weekStartISO();
+  const start = new Date(`${shownWeek}T12:00:00`); const end = new Date(start); end.setDate(start.getDate() + 6);
+  $("#weekly-range").textContent = `${formatDate(shownWeek, { day: "numeric", month: "short" })} — ${formatDate(end.toISOString().slice(0, 10), { day: "numeric", month: "short" })}`;
+  $("#weekly-current").classList.toggle("hidden", shownWeek === weekStartISO());
+  const container = $("#weekly-plan-list");
+  if (!state.weeklyPlans.length) {
+    container.innerHTML = '<button class="weekly-empty" type="button"><i>↗</i><span><strong>Добавьте первую идею недели</strong><small>График, сценарий и результат будут собраны в одном месте.</small></span></button>';
+    $(".weekly-empty", container).addEventListener("click", () => openWeeklyPlanDialog());
+    return;
+  }
+  container.innerHTML = state.weeklyPlans.map(weeklyPlanCard).join("");
+  $$(".weekly-plan-card", container).forEach((card) => card.addEventListener("click", () => {
+    const plan = state.weeklyPlans.find((item) => String(item.id) === card.dataset.weeklyPlanId);
+    if (plan) openWeeklyPlanDialog(plan);
+  }));
+  hydrateProtectedImages(container);
+}
+
+async function loadWeeklyPlans(week) {
+  const target = weekStartISO(week); const data = await api(`/api/weekly-plans?week=${target}`);
+  state.weeklyWeek = data.week_start; state.weeklyPlans = data.plans || []; renderWeeklyPlans();
+}
+
+function shiftedWeek(value, offset) {
+  const current = new Date(`${value}T12:00:00`); current.setDate(current.getDate() + offset * 7);
+  return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
 }
 
 function renderToday() {
@@ -243,9 +324,12 @@ function tradeRow(trade, animate = true) {
   const pnl = Number(trade.pnl || 0);
   const author = own ? "Вы" : escapeHtml(displayName(trade));
   const result = trade.status === "closed" ? formatMoney(pnl, true) : tradeStatus(trade);
+  const ideaMark = trade.weekly_plan_id && trade.idea_followed != null
+    ? `<span class="trade-idea-mark ${Number(trade.idea_followed) === 1 ? "" : "broken"}">${Number(trade.idea_followed) === 1 ? "По идее недели" : "Вне идеи недели"}</span>`
+    : "";
   return `<button class="trade-item${animate ? "" : " no-animate"}" data-trade-id="${trade.id}" data-own="${own}" type="button">
     <span class="trade-side ${String(trade.direction).toLowerCase()}">${trade.direction === "BUY" ? "BUY" : "SELL"}</span>
-    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small></span>
+    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small>${ideaMark}</span>
     <span class="trade-result ${pnl > 0 && trade.status === "closed" ? "positive" : pnl < 0 && trade.status === "closed" ? "negative" : ""}">${result}<small>${trade.r_multiple == null ? tradeStatus(trade) : `${Number(trade.r_multiple).toFixed(2)}R`}</small></span>
   </button>`;
 }
@@ -271,6 +355,112 @@ async function saveMood(event) {
     };
     await api(`/api/moods/${todayISO()}`, { method: "PUT", body: JSON.stringify(payload) });
     setDirty(false); haptic(); toast("План на день сохранён"); await loadBootstrap();
+  });
+}
+
+function renderWeeklyImagePreview() {
+  const container = $("#weekly-image-preview");
+  const existing = state.editingWeeklyPlan?.images || [];
+  const selected = [...$("#weekly-plan-images").files];
+  const oldImages = existing.map((item) => `<figure><img data-protected-src="${escapeHtml(item.url)}" data-view-plan-image="${escapeHtml(item.url)}" alt="График недельного плана"><button data-delete-plan-image="${item.id}" type="button" aria-label="Удалить фотографию">×</button></figure>`);
+  const newImages = selected.map((file) => {
+    const url = URL.createObjectURL(file);
+    return `<figure class="new-image"><img src="${url}" data-view-plan-image="${url}" alt="Новая фотография"><span class="saved-mark">Будет добавлено</span></figure>`;
+  });
+  container.innerHTML = [...oldImages, ...newImages].join("");
+  $$('[data-delete-plan-image]', container).forEach((button) => button.addEventListener("click", () => deleteWeeklyPlanImage(Number(button.dataset.deletePlanImage)).catch(showRequestError)));
+  $$('[data-view-plan-image]', container).forEach((image) => image.addEventListener("click", () => openPlanImage(image.dataset.viewPlanImage).catch(showRequestError)));
+  hydrateProtectedImages(container);
+}
+
+async function openPlanImage(source) {
+  const dialog = $("#plan-image-viewer"); const image = $("img", dialog);
+  if (source.startsWith("/api/")) {
+    const response = await fetch(source, { headers: { "X-Telegram-Init-Data": tg?.initData || "" } });
+    if (!response.ok) throw new Error("Не удалось открыть фотографию");
+    const url = URL.createObjectURL(await response.blob()); dialog.dataset.objectUrl = url; image.src = url;
+  } else image.src = source;
+  dialog.showModal();
+}
+
+function closePlanImage() {
+  const dialog = $("#plan-image-viewer"); dialog.close(); $("img", dialog).removeAttribute("src");
+  if (dialog.dataset.objectUrl) { URL.revokeObjectURL(dialog.dataset.objectUrl); delete dialog.dataset.objectUrl; }
+}
+
+function openWeeklyPlanDialog(plan = null) {
+  const dialog = $("#weekly-plan-dialog"); const form = $("#weekly-plan-form");
+  form.reset(); state.editingWeeklyPlan = plan; form.elements.plan_id.value = plan?.id || "";
+  form.elements.week_start.value = plan?.week_start || state.weeklyWeek || weekStartISO();
+  form.elements.visibility.value = plan?.visibility || (state.circle ? "team" : "private");
+  const fields = ["symbol", "bias", "title", "idea", "trade_plan", "invalidation", "status", "week_summary", "week_lesson", "rating"];
+  if (plan) for (const field of fields) form.elements[field].value = plan[field] ?? "";
+  else { form.elements.symbol.value = "XAUUSD"; form.elements.bias.value = "NEUTRAL"; form.elements.status.value = "active"; }
+  $("#weekly-plan-dialog-title").textContent = plan ? `${plan.symbol} · план недели` : "Новая торговая идея";
+  $("#delete-weekly-plan").classList.toggle("hidden", !plan);
+  $("#weekly-review").open = Boolean(plan?.status === "reviewed" || plan?.week_summary || plan?.week_lesson);
+  renderWeeklyImagePreview(); setDirty(false); dialog.showModal(); dialog.focus({ preventScroll: true });
+}
+
+function weeklyPlanPayload(form) {
+  const data = new FormData(form);
+  return {
+    week_start: data.get("week_start"), symbol: data.get("symbol"), bias: data.get("bias"),
+    title: data.get("title"), idea: data.get("idea"), trade_plan: data.get("trade_plan"),
+    invalidation: data.get("invalidation"), status: data.get("status"),
+    week_summary: data.get("week_summary"), week_lesson: data.get("week_lesson"),
+    rating: data.get("rating") === "" ? null : Number(data.get("rating")), visibility: data.get("visibility"),
+  };
+}
+
+async function compressPlanImage(file) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Поддерживаются JPG, PNG и WebP");
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error("Не удалось прочитать фотографию")); image.src = url; });
+  URL.revokeObjectURL(url);
+  const maxSide = 1800; const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  if (scale === 1 && file.size <= 5.5 * 1024 * 1024) return { blob: file, name: file.name };
+  const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, .88));
+  if (!blob) throw new Error("Не удалось подготовить фотографию");
+  return { blob, name: file.name.replace(/\.[^.]+$/, mime === "image/png" ? ".png" : ".jpg") };
+}
+
+async function saveWeeklyPlan(event) {
+  event.preventDefault(); const form = event.currentTarget; const button = $("#save-weekly-plan");
+  const files = [...form.elements.images.files]; const existingCount = state.editingWeeklyPlan?.images?.length || 0;
+  if (existingCount + files.length > 4) throw new Error("В одном плане может быть не больше четырёх фотографий");
+  await pending(button, async () => {
+    const id = form.elements.plan_id.value;
+    const result = await api(id ? `/api/weekly-plans/${id}` : "/api/weekly-plans", { method: id ? "PUT" : "POST", body: JSON.stringify(weeklyPlanPayload(form)) });
+    form.elements.plan_id.value = result.plan.id;
+    state.editingWeeklyPlan = { ...(state.editingWeeklyPlan || {}), ...result.plan, images: state.editingWeeklyPlan?.images || [] };
+    for (let index = 0; index < files.length; index += 1) {
+      button.textContent = `Загружаем фото ${index + 1} из ${files.length}`;
+      const prepared = await compressPlanImage(files[index]); const body = new FormData();
+      body.append("image", prepared.blob, prepared.name);
+      const uploaded = await api(`/api/weekly-plans/${result.plan.id}/images`, { method: "POST", body });
+      state.editingWeeklyPlan.images.push(uploaded.image);
+    }
+    setDirty(false); $("#weekly-plan-dialog").close(); await loadBootstrap(); await loadWeeklyPlans(result.plan.week_start); haptic("medium"); toast(id ? "План недели обновлён" : "Идея недели сохранена");
+  });
+}
+
+async function deleteWeeklyPlanImage(imageId) {
+  if (!(await askConfirm("Удалить эту фотографию из недельного плана?"))) return;
+  await api(`/api/weekly-plan-images/${imageId}`, { method: "DELETE" });
+  if (state.editingWeeklyPlan) state.editingWeeklyPlan.images = state.editingWeeklyPlan.images.filter((item) => Number(item.id) !== Number(imageId));
+  renderWeeklyImagePreview(); setDirty(true); toast("Фотография удалена");
+}
+
+async function deleteWeeklyPlan() {
+  const id = $("#weekly-plan-form").elements.plan_id.value;
+  if (!id || !(await askConfirm("Удалить недельный план? Сделки останутся, но связь с идеей будет снята."))) return;
+  await pending($("#delete-weekly-plan"), async () => {
+    await api(`/api/weekly-plans/${id}`, { method: "DELETE" }); setDirty(false); $("#weekly-plan-dialog").close(); await loadBootstrap(); await loadWeeklyPlans(state.weeklyWeek); toast("Недельный план удалён");
   });
 }
 
@@ -310,6 +500,26 @@ function validateTradeStep(step) {
   return true;
 }
 
+function populateWeeklyPlanOptions(selected = "", linkedTrade = null) {
+  const select = $("#trade-form").elements.weekly_plan_id;
+  const options = ['<option value="">Без недельного плана</option>'];
+  for (const plan of state.currentWeeklyPlans) options.push(`<option value="${plan.id}">${escapeHtml(plan.symbol)} · ${escapeHtml(plan.title || "Идея недели")}</option>`);
+  if (selected && !state.currentWeeklyPlans.some((plan) => String(plan.id) === String(selected))) {
+    options.push(`<option value="${escapeHtml(selected)}">${escapeHtml(linkedTrade?.weekly_plan_symbol || linkedTrade?.symbol || "План")} · ${escapeHtml(linkedTrade?.weekly_plan_title || "Идея прошлой недели")}</option>`);
+  }
+  select.innerHTML = options.join(""); select.value = selected || "";
+}
+
+function autoLinkWeeklyPlan(force = false) {
+  const form = $("#trade-form");
+  const symbol = form.elements.symbol.value.trim().toUpperCase();
+  const tradeWeek = weekStartISO(form.elements.traded_at.value || todayISO());
+  const match = state.currentWeeklyPlans.find((plan) => plan.symbol === symbol && plan.week_start === tradeWeek);
+  if (match && (force || !form.elements.weekly_plan_id.value)) form.elements.weekly_plan_id.value = String(match.id);
+  else if (force && !match) form.elements.weekly_plan_id.value = "";
+  $("#weekly-link-hint").textContent = match ? `Найден план: ${match.title || match.idea.slice(0, 60)}` : "Для этого инструмента на выбранной неделе плана нет.";
+}
+
 function openTradeDialog(trade = null, readOnly = false) {
   const dialog = $("#trade-dialog"); const form = $("#trade-form");
   form.reset(); setTradeReadOnly(false);
@@ -320,17 +530,21 @@ function openTradeDialog(trade = null, readOnly = false) {
   form.elements.plan_followed.value = "true"; form.elements.visibility.value = state.circle ? "team" : "private";
   form.elements.trade_id.value = ""; form.elements.client_entry_id.value = entryId();
   form.elements.outcome_type.value = ""; form.dataset.outcomeChoice = "";
+  populateWeeklyPlanOptions();
   $("#delete-trade").classList.add("hidden");
   if (trade) {
-    const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "journal_mode", "confidence_before", "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
+    const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "journal_mode", "confidence_before", "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type", "weekly_plan_id", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
+    populateWeeklyPlanOptions(trade.weekly_plan_id, trade);
     form.elements.trade_id.value = trade.id; form.elements.client_entry_id.value = trade.client_entry_id || "";
     form.elements.traded_at.value = String(trade.traded_at).slice(0, 16);
     for (const field of fields) form.elements[field].value = trade[field] ?? "";
     form.elements.plan_followed.value = Number(trade.plan_followed) === 1 ? "true" : "false";
+    form.elements.idea_followed.value = trade.idea_followed == null ? "" : Number(trade.idea_followed) === 1 ? "true" : "false";
     form.dataset.outcomeChoice = trade.outcome_type || (Number(trade.pnl) > 0 ? "take" : Number(trade.pnl) < 0 ? "stop" : trade.status === "closed" ? "breakeven" : "");
     form.elements.outcome_type.value = form.dataset.outcomeChoice;
     $("#delete-trade").classList.remove("hidden");
   }
+  if (!trade) autoLinkWeeklyPlan();
   const statusRadio = $(`input[name="status_choice"][value="${form.elements.status.value}"]`, form);
   if (statusRadio) statusRadio.checked = true;
   $("#trade-confidence-output").value = form.elements.confidence_before.value || 3;
@@ -342,9 +556,10 @@ function openTradeDialog(trade = null, readOnly = false) {
 function tradePayload(form) {
   const data = new FormData(form); const payload = Object.fromEntries(data.entries());
   delete payload.trade_id; delete payload.status_choice;
-  for (const key of ["entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "confidence_before"]) payload[key] = payload[key] === "" ? null : Number(payload[key]);
+  for (const key of ["entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "confidence_before", "weekly_plan_id"]) payload[key] = payload[key] === "" ? null : Number(payload[key]);
   if (payload.status === "closed" && !payload.outcome_type && payload.pnl != null) payload.outcome_type = payload.pnl > 0 ? "take" : payload.pnl < 0 ? "stop" : "breakeven";
   payload.plan_followed = payload.plan_followed === "true";
+  payload.idea_followed = payload.idea_followed === "" ? null : payload.idea_followed === "true";
   return payload;
 }
 
@@ -400,6 +615,7 @@ async function saveTrade(event) {
     await api(id ? `/api/trades/${id}` : "/api/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(tradePayload(form)) });
     setDirty(false); $("#trade-dialog").close(); haptic("medium"); toast(id ? "Сделка обновлена" : "Сделка записана");
     await loadBootstrap();
+    if (state.weeklyWeek !== weekStartISO()) await loadWeeklyPlans(state.weeklyWeek);
     if (state.currentView === "calendar") { await loadCalendar(); if (state.selectedDay) await selectDay(state.selectedDay); }
   });
 }
@@ -413,6 +629,7 @@ async function confirmDelete() {
   if (!id || !(await askConfirm("Удалить эту сделку из журнала?"))) return;
   await pending($("#delete-trade"), async () => {
     await api(`/api/trades/${id}`, { method: "DELETE" }); setDirty(false); $("#trade-dialog").close(); toast("Сделка удалена"); await loadBootstrap();
+    if (state.weeklyWeek !== weekStartISO()) await loadWeeklyPlans(state.weeklyWeek);
     if (state.currentView === "calendar") await loadCalendar();
   });
 }
@@ -592,7 +809,18 @@ function bindEvents() {
   $("#edit-plan").addEventListener("click", editPlan);
   $("#mood-form").addEventListener("submit", (event) => saveMood(event).catch(showRequestError));
   $("#settings-form").addEventListener("submit", (event) => saveSettings(event).catch(showRequestError));
-  for (const form of [$("#mood-form"), $("#settings-form"), $("#trade-form")]) form.addEventListener("input", () => setDirty(true));
+  $("#weekly-plan-form").addEventListener("submit", (event) => saveWeeklyPlan(event).catch(showRequestError));
+  for (const form of [$("#mood-form"), $("#settings-form"), $("#trade-form"), $("#weekly-plan-form")]) form.addEventListener("input", () => setDirty(true));
+  $("#add-weekly-plan").addEventListener("click", () => openWeeklyPlanDialog());
+  $("#weekly-prev").addEventListener("click", () => loadWeeklyPlans(shiftedWeek(state.weeklyWeek || weekStartISO(), -1)).catch(showRequestError));
+  $("#weekly-next").addEventListener("click", () => loadWeeklyPlans(shiftedWeek(state.weeklyWeek || weekStartISO(), 1)).catch(showRequestError));
+  $("#weekly-current").addEventListener("click", () => loadWeeklyPlans(weekStartISO()).catch(showRequestError));
+  $("#weekly-plan-images").addEventListener("change", () => { renderWeeklyImagePreview(); setDirty(true); });
+  $("#delete-weekly-plan").addEventListener("click", () => deleteWeeklyPlan().catch(showRequestError));
+  $("#close-weekly-plan").addEventListener("click", async () => { if (!state.dirty || await askConfirm("Закрыть недельный план без сохранения?")) { setDirty(false); $("#weekly-plan-dialog").close(); } });
+  $("#weekly-plan-dialog").addEventListener("cancel", (event) => { if (state.dirty) { event.preventDefault(); askConfirm("Закрыть недельный план без сохранения?").then((ok) => { if (ok) { setDirty(false); $("#weekly-plan-dialog").close(); } }); } });
+  $("#close-plan-image").addEventListener("click", closePlanImage);
+  $("#plan-image-viewer").addEventListener("cancel", (event) => { event.preventDefault(); closePlanImage(); });
   for (const key of ["energy", "confidence", "discipline"]) $(`#${key}`).addEventListener("input", (event) => { $(`#${key}-output`).value = event.target.value; });
   $("#close-trade-dialog").addEventListener("click", async () => { if (!state.dirty || await askConfirm("Закрыть без сохранения?") ) { setDirty(false); $("#trade-dialog").close(); } });
   $("#trade-dialog").addEventListener("cancel", (event) => { if (state.dirty) { event.preventDefault(); askConfirm("Закрыть без сохранения?").then((ok) => { if (ok) { setDirty(false); $("#trade-dialog").close(); } }); } });
@@ -600,6 +828,8 @@ function bindEvents() {
   $("#trade-form").elements.risk_amount.addEventListener("input", updateRPreview);
   $("#trade-form").elements.pnl.addEventListener("input", normalizeOutcomeInput);
   $("#trade-confidence").addEventListener("input", (event) => { $("#trade-confidence-output").value = event.target.value; });
+  $("#trade-form").elements.symbol.addEventListener("input", () => autoLinkWeeklyPlan(true));
+  $("#trade-form").elements.traded_at.addEventListener("change", () => autoLinkWeeklyPlan(true));
   $$("input[name='status_choice']").forEach((radio) => radio.addEventListener("change", () => { $("#trade-form").elements.status.value = radio.value; updateTradeStage(); setDirty(true); }));
   $$(".outcome-choice button").forEach((button) => button.addEventListener("click", () => chooseOutcome(button.dataset.outcome)));
   $$("[data-trade-step]").forEach((button) => button.addEventListener("click", () => { const target = Number(button.dataset.tradeStep); if (target <= state.tradeStep || validateTradeStep(state.tradeStep)) showTradeStep(target); }));

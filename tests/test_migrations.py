@@ -39,6 +39,11 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
             db = sqlite3.connect(path)
             mood_columns = {row[1] for row in db.execute("PRAGMA table_info(moods)")}
             trade_columns = {row[1] for row in db.execute("PRAGMA table_info(trades)")}
+            tables = {
+                row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
             db.close()
             self.assertTrue(
                 {"focus", "lesson", "journal_mode", "market_bias", "day_idea",
@@ -48,9 +53,11 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(
                 {"status", "client_entry_id", "session", "grade", "market_context",
                  "journal_mode", "confidence_before", "trade_plan", "entry_trigger",
-                 "trade_invalidation", "outcome_type", "circle_id"}
+                 "trade_invalidation", "outcome_type", "weekly_plan_id",
+                 "idea_followed", "circle_id"}
                 <= trade_columns
             )
+            self.assertTrue({"weekly_plans", "weekly_plan_images"} <= tables)
 
 
 if __name__ == "__main__":

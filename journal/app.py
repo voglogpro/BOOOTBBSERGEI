@@ -70,7 +70,7 @@ async def security_headers_middleware(
         "default-src 'self'; "
         "script-src 'self' https://telegram.org; "
         "style-src 'self'; "
-        "img-src 'self' data: https:; "
+        "img-src 'self' data: blob: https:; "
         "connect-src 'self'; frame-src https://oauth.telegram.org https://telegram.org; "
         "object-src 'none'; base-uri 'self'; form-action 'self'; "
         "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org"
@@ -268,7 +268,9 @@ async def startup(app: web.Application) -> None:
 def create_app(settings: Settings) -> web.Application:
     app = web.Application(
         middlewares=[security_headers_middleware, error_middleware, telegram_auth_middleware],
-        client_max_size=64 * 1024,
+        # JSON entries stay tiny; the larger limit is reserved for protected
+        # weekly-plan chart images (the endpoint enforces a stricter 6 MB cap).
+        client_max_size=8 * 1024 * 1024,
     )
     app[SETTINGS_KEY] = settings
     app[REPOSITORY_KEY] = JournalRepository(settings.database_path)

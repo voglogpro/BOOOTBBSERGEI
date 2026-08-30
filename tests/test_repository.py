@@ -164,6 +164,45 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stats["trades"], 1)
         self.assertEqual(stats["mood_patterns"], [])
 
+    async def test_weekly_plan_rejects_trade_from_another_symbol(self) -> None:
+        plan = await self.repo.save_weekly_plan(self.owner["id"], {
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "План", "idea": "Рост", "trade_plan": "После ретеста",
+            "invalidation": "Ниже уровня", "status": "active", "week_summary": "",
+            "week_lesson": "", "rating": None, "visibility": "private",
+        })
+        with self.assertRaises(RepositoryError):
+            await self.repo.create_trade(self.owner["id"], self.trade(
+                symbol="EURUSD", weekly_plan_id=plan["id"], idea_followed=1,
+            ))
+
+    async def test_private_weekly_plan_details_are_not_exposed_with_shared_trade(self) -> None:
+        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
+        await self.repo.join_circle(self.friend["id"], circle["invite_code"])
+        plan = await self.repo.save_weekly_plan(self.owner["id"], {
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "Приватная идея", "idea": "Рост", "trade_plan": "Ретест",
+            "invalidation": "Ниже уровня", "status": "active", "week_summary": "",
+            "week_lesson": "", "rating": None, "visibility": "private",
+        })
+        image = await self.repo.add_weekly_plan_image(self.owner["id"], plan["id"], {
+            "storage_name": "private.jpg", "original_name": "chart.jpg",
+            "mime_type": "image/jpeg", "size_bytes": 4,
+        })
+        await self.repo.create_trade(self.owner["id"], self.trade(
+            weekly_plan_id=plan["id"], idea_followed=1, visibility="team",
+        ))
+
+        visible = await self.repo.list_trades(
+            self.friend["id"], start_date="2026-08-28", end_date="2026-08-28",
+            scope="team",
+        )
+        self.assertEqual(len(visible), 1)
+        self.assertEqual(visible[0]["weekly_plan_title"], "")
+        self.assertEqual(visible[0]["weekly_plan_symbol"], "")
+        with self.assertRaises(RepositoryError):
+            await self.repo.get_weekly_plan_image(self.friend["id"], image["id"])
+
 
 if __name__ == "__main__":
     unittest.main()

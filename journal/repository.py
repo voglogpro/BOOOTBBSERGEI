@@ -320,24 +320,267 @@ class JournalRepository:
         finally:
             await db.close()
 
+    async def save_weekly_plan(
+        self, user_id: int, values: dict[str, Any], plan_id: int | None = None
+    ) -> dict[str, Any]:
+        columns = [
+            "week_start", "symbol", "bias", "title", "idea", "trade_plan",
+            "invalidation", "status", "week_summary", "week_lesson", "rating",
+            "visibility",
+        ]
+        db = await connect(self.database_path)
+        try:
+            circle_id = await self._current_circle_id(db, user_id)
+            if values["visibility"] != "team":
+                circle_id = None
+            try:
+                if plan_id is None:
+                    placeholders = ", ".join("?" for _ in range(len(columns) + 2))
+                    cursor = await db.execute(
+                        f"INSERT INTO weekly_plans(user_id, {', '.join(columns)}, circle_id) "
+                        f"VALUES ({placeholders})",
+                        [user_id, *[values[column] for column in columns], circle_id],
+                    )
+                    plan_id = int(cursor.lastrowid)
+                else:
+                    assignments = ", ".join(f"{column}=?" for column in columns)
+                    cursor = await db.execute(
+                        f"UPDATE weekly_plans SET {assignments}, circle_id=?, "
+                        "updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",
+                        [*[values[column] for column in columns], circle_id, plan_id, user_id],
+                    )
+                    if cursor.rowcount != 1:
+                        raise RepositoryError("Недельный план не найден")
+                await db.commit()
+            except aiosqlite.IntegrityError as exc:
+                await db.rollback()
+                raise RepositoryError(
+                    "Для этого инструмента на выбранной неделе план уже существует"
+                ) from exc
+            return await self._get_owned_weekly_plan(db, user_id, int(plan_id))
+        finally:
+            await db.close()
+
+    async def _get_owned_weekly_plan(
+        self, db: aiosqlite.Connection, user_id: int, plan_id: int
+    ) -> dict[str, Any]:
+        cursor = await db.execute(
+            "SELECT * FROM weekly_plans WHERE id=? AND user_id=?", (plan_id, user_id)
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise RepositoryError("Недельный план не найден")
+        return dict(row)
+
+    async def list_weekly_plans(
+        self, user_id: int, *, week_start: str, scope: str = "me"
+    ) -> list[dict[str, Any]]:
+        db = await connect(self.database_path)
+        try:
+            clause, params = await self._scope_clause(db, user_id, scope, "p")
+            cursor = await db.execute(
+                f"""
+                SELECT p.*, u.first_name, u.last_name, u.username
+                FROM weekly_plans p JOIN users u ON u.id=p.user_id
+                WHERE {clause} AND p.week_start=?
+                ORDER BY p.symbol, p.id
+                """,
+                [*params, week_start],
+            )
+            plans = [dict(row) for row in await cursor.fetchall()]
+            if not plans:
+                return []
+            by_id = {int(plan["id"]): plan for plan in plans}
+            placeholders = ",".join("?" for _ in by_id)
+            cursor = await db.execute(
+                f"""
+                SELECT id, plan_id, original_name, mime_type, size_bytes, created_at
+                FROM weekly_plan_images WHERE plan_id IN ({placeholders})
+                ORDER BY id
+                """,
+                list(by_id),
+            )
+            for plan in plans:
+                plan["images"] = []
+                plan["days"] = []
+                plan["trades"] = 0
+                plan["pnl"] = 0.0
+                plan["idea_followed"] = 0
+                plan["idea_broken"] = 0
+                plan["idea_rate"] = None
+            for image in await cursor.fetchall():
+                item = dict(image)
+                item["url"] = f"/api/weekly-plan-images/{item['id']}"
+                by_id[int(item["plan_id"])]["images"].append(item)
+
+            trade_clause, trade_params = await self._scope_clause(db, user_id, scope)
+            cursor = await db.execute(
+                f"""
+                SELECT weekly_plan_id, substr(traded_at, 1, 10) AS day,
+                       COUNT(*) AS trades,
+                       ROUND(COALESCE(SUM(CASE WHEN status='closed' THEN pnl ELSE 0 END), 0), 2) AS pnl,
+                       SUM(CASE WHEN idea_followed=1 THEN 1 ELSE 0 END) AS idea_followed,
+                       SUM(CASE WHEN idea_followed=0 THEN 1 ELSE 0 END) AS idea_broken
+                FROM trades WHERE {trade_clause}
+                  AND weekly_plan_id IN ({placeholders})
+                GROUP BY weekly_plan_id, day ORDER BY day
+                """,
+                [*trade_params, *list(by_id)],
+            )
+            for row in await cursor.fetchall():
+                day = dict(row)
+                plan = by_id[int(day["weekly_plan_id"])]
+                plan["days"].append(day)
+                plan["trades"] += int(day["trades"] or 0)
+                plan["pnl"] = round(float(plan["pnl"]) + float(day["pnl"] or 0), 2)
+                plan["idea_followed"] += int(day["idea_followed"] or 0)
+                plan["idea_broken"] += int(day["idea_broken"] or 0)
+            for plan in plans:
+                marked = plan["idea_followed"] + plan["idea_broken"]
+                if marked:
+                    plan["idea_rate"] = round(plan["idea_followed"] / marked * 100, 1)
+            return plans
+        finally:
+            await db.close()
+
+    async def add_weekly_plan_image(
+        self, user_id: int, plan_id: int, image: dict[str, Any]
+    ) -> dict[str, Any]:
+        db = await connect(self.database_path)
+        try:
+            await self._get_owned_weekly_plan(db, user_id, plan_id)
+            cursor = await db.execute(
+                "SELECT COUNT(*) AS count FROM weekly_plan_images WHERE plan_id=?",
+                (plan_id,),
+            )
+            if int((await cursor.fetchone())["count"]) >= 4:
+                raise RepositoryError("К одному недельному плану можно добавить до четырёх фотографий")
+            cursor = await db.execute(
+                """
+                INSERT INTO weekly_plan_images(
+                    plan_id, storage_name, original_name, mime_type, size_bytes
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    plan_id, image["storage_name"], image["original_name"],
+                    image["mime_type"], image["size_bytes"],
+                ),
+            )
+            image_id = int(cursor.lastrowid)
+            await db.commit()
+            cursor = await db.execute(
+                "SELECT * FROM weekly_plan_images WHERE id=?", (image_id,)
+            )
+            return dict(await cursor.fetchone())
+        finally:
+            await db.close()
+
+    async def get_weekly_plan_image(
+        self, user_id: int, image_id: int
+    ) -> dict[str, Any]:
+        db = await connect(self.database_path)
+        try:
+            circle_id = await self._current_circle_id(db, user_id)
+            cursor = await db.execute(
+                """
+                SELECT i.* FROM weekly_plan_images i
+                JOIN weekly_plans p ON p.id=i.plan_id
+                WHERE i.id=? AND (
+                    p.user_id=? OR
+                    (? IS NOT NULL AND p.circle_id=? AND p.visibility='team')
+                )
+                """,
+                (image_id, user_id, circle_id, circle_id),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise RepositoryError("Фотография плана не найдена")
+            return dict(row)
+        finally:
+            await db.close()
+
+    async def delete_weekly_plan_image(self, user_id: int, image_id: int) -> str:
+        db = await connect(self.database_path)
+        try:
+            cursor = await db.execute(
+                """
+                SELECT i.storage_name FROM weekly_plan_images i
+                JOIN weekly_plans p ON p.id=i.plan_id
+                WHERE i.id=? AND p.user_id=?
+                """,
+                (image_id, user_id),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise RepositoryError("Фотография плана не найдена")
+            await db.execute("DELETE FROM weekly_plan_images WHERE id=?", (image_id,))
+            await db.commit()
+            return str(row["storage_name"])
+        finally:
+            await db.close()
+
+    async def delete_weekly_plan(self, user_id: int, plan_id: int) -> list[str]:
+        db = await connect(self.database_path)
+        try:
+            await self._get_owned_weekly_plan(db, user_id, plan_id)
+            cursor = await db.execute(
+                "SELECT storage_name FROM weekly_plan_images WHERE plan_id=?", (plan_id,)
+            )
+            files = [str(row["storage_name"]) for row in await cursor.fetchall()]
+            await db.execute(
+                "UPDATE trades SET weekly_plan_id=NULL, idea_followed=NULL "
+                "WHERE weekly_plan_id=? AND user_id=?",
+                (plan_id, user_id),
+            )
+            await db.execute(
+                "DELETE FROM weekly_plans WHERE id=? AND user_id=?", (plan_id, user_id)
+            )
+            await db.commit()
+            return files
+        finally:
+            await db.close()
+
+    async def _validate_weekly_plan_link(
+        self, db: aiosqlite.Connection, user_id: int, trade: dict[str, Any]
+    ) -> None:
+        plan_id = trade.get("weekly_plan_id")
+        if plan_id is None:
+            return
+        cursor = await db.execute(
+            "SELECT week_start, symbol FROM weekly_plans WHERE id=? AND user_id=?",
+            (plan_id, user_id),
+        )
+        plan = await cursor.fetchone()
+        if plan is None:
+            raise RepositoryError("Недельный план не найден")
+        traded_on = date.fromisoformat(str(trade["traded_at"])[:10])
+        week_start = date.fromisoformat(str(plan["week_start"]))
+        if not week_start <= traded_on <= week_start + timedelta(days=6):
+            raise RepositoryError("Дата сделки не входит в неделю выбранного плана")
+        if str(plan["symbol"]).upper() != str(trade["symbol"]).upper():
+            raise RepositoryError("Инструмент сделки не совпадает с недельным планом")
+
     async def create_trade(self, user_id: int, trade: dict[str, Any]) -> dict[str, Any]:
         defaults = {
             "status": "closed", "client_entry_id": "", "session": "",
             "grade": "", "market_context": "", "journal_mode": "backtest",
             "outcome_type": "", "trade_plan": "", "entry_trigger": "",
             "trade_invalidation": "",
+            "weekly_plan_id": None, "idea_followed": None,
         }
         columns = [
             "traded_at", "symbol", "direction", "status", "client_entry_id",
             "timeframe", "session", "setup",
             "grade", "market_context", "journal_mode", "confidence_before",
             "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
+            "weekly_plan_id", "idea_followed",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
         ]
         db = await connect(self.database_path)
         try:
+            await self._validate_weekly_plan_link(db, user_id, trade)
             circle_id = await self._current_circle_id(db, user_id)
             if trade["visibility"] != "team":
                 circle_id = None
@@ -372,17 +615,20 @@ class JournalRepository:
             "status": "closed", "session": "", "grade": "", "market_context": "",
             "journal_mode": "backtest", "outcome_type": "", "trade_plan": "",
             "entry_trigger": "", "trade_invalidation": "",
+            "weekly_plan_id": None, "idea_followed": None,
         }
         columns = [
             "traded_at", "symbol", "direction", "status", "timeframe", "session", "setup",
             "grade", "market_context", "journal_mode", "confidence_before",
             "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
+            "weekly_plan_id", "idea_followed",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
         ]
         db = await connect(self.database_path)
         try:
+            await self._validate_weekly_plan_link(db, user_id, trade)
             circle_id = await self._current_circle_id(db, user_id)
             if trade["visibility"] != "team":
                 circle_id = None
@@ -423,15 +669,16 @@ class JournalRepository:
             await db.close()
 
     async def _scope_clause(
-        self, db: aiosqlite.Connection, user_id: int, scope: str
+        self, db: aiosqlite.Connection, user_id: int, scope: str, table_alias: str = ""
     ) -> tuple[str, list[Any]]:
+        prefix = f"{table_alias}." if table_alias else ""
         if scope != "team":
-            return "user_id=?", [user_id]
+            return f"{prefix}user_id=?", [user_id]
         circle_id = await self._current_circle_id(db, user_id)
         if circle_id is None:
-            return "user_id=?", [user_id]
+            return f"{prefix}user_id=?", [user_id]
         return (
-            "(user_id=? OR (circle_id=? AND visibility='team'))",
+            f"({prefix}user_id=? OR ({prefix}circle_id=? AND {prefix}visibility='team'))",
             [user_id, circle_id],
         )
 
@@ -445,15 +692,24 @@ class JournalRepository:
     ) -> list[dict[str, Any]]:
         db = await connect(self.database_path)
         try:
-            clause, params = await self._scope_clause(db, user_id, scope)
+            clause, params = await self._scope_clause(db, user_id, scope, "t")
+            current_circle_id = await self._current_circle_id(db, user_id)
             cursor = await db.execute(
                 f"""
-                SELECT t.*, u.first_name, u.last_name, u.username
+                SELECT t.*, u.first_name, u.last_name, u.username,
+                       CASE WHEN wp.user_id=? OR
+                                      (wp.circle_id=? AND wp.visibility='team')
+                            THEN wp.title ELSE '' END AS weekly_plan_title,
+                       CASE WHEN wp.user_id=? OR
+                                      (wp.circle_id=? AND wp.visibility='team')
+                            THEN wp.symbol ELSE '' END AS weekly_plan_symbol
                 FROM trades t JOIN users u ON u.id=t.user_id
+                LEFT JOIN weekly_plans wp ON wp.id=t.weekly_plan_id
                 WHERE {clause} AND substr(traded_at, 1, 10) BETWEEN ? AND ?
                 ORDER BY traded_at DESC, t.id DESC
                 """,
-                [*params, start_date, end_date],
+                [user_id, current_circle_id, user_id, current_circle_id,
+                 *params, start_date, end_date],
             )
             return [dict(row) for row in await cursor.fetchall()]
         finally:
@@ -478,11 +734,16 @@ class JournalRepository:
                        m.day_idea,
                        m.key_levels AS day_key_levels,
                        m.day_invalidation,
-                       m.news_context AS day_news_context
+                       m.news_context AS day_news_context,
+                       wp.title AS weekly_plan_title,
+                       wp.idea AS weekly_plan_idea,
+                       wp.trade_plan AS weekly_plan_trade_plan,
+                       wp.invalidation AS weekly_plan_invalidation
                 FROM trades t
                 LEFT JOIN moods m
                   ON m.user_id=t.user_id
                  AND m.entry_date=substr(t.traded_at, 1, 10)
+                LEFT JOIN weekly_plans wp ON wp.id=t.weekly_plan_id
                 WHERE t.user_id=?
                 ORDER BY t.traded_at, t.id
                 """,

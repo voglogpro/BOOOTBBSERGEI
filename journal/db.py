@@ -73,6 +73,37 @@ CREATE TABLE IF NOT EXISTS moods (
     UNIQUE (user_id, entry_date)
 );
 
+CREATE TABLE IF NOT EXISTS weekly_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    bias TEXT NOT NULL DEFAULT 'NEUTRAL' CHECK (bias IN ('LONG', 'SHORT', 'NEUTRAL')),
+    title TEXT NOT NULL DEFAULT '',
+    idea TEXT NOT NULL DEFAULT '',
+    trade_plan TEXT NOT NULL DEFAULT '',
+    invalidation TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'reviewed')),
+    week_summary TEXT NOT NULL DEFAULT '',
+    week_lesson TEXT NOT NULL DEFAULT '',
+    rating INTEGER CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
+    visibility TEXT NOT NULL DEFAULT 'team' CHECK (visibility IN ('private', 'team')),
+    circle_id INTEGER REFERENCES circles(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, week_start, symbol)
+);
+
+CREATE TABLE IF NOT EXISTS weekly_plan_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id INTEGER NOT NULL REFERENCES weekly_plans(id) ON DELETE CASCADE,
+    storage_name TEXT NOT NULL UNIQUE,
+    original_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS trades (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -92,6 +123,8 @@ CREATE TABLE IF NOT EXISTS trades (
     entry_trigger TEXT NOT NULL DEFAULT '',
     trade_invalidation TEXT NOT NULL DEFAULT '',
     outcome_type TEXT NOT NULL DEFAULT '' CHECK (outcome_type IN ('', 'take', 'stop', 'breakeven', 'manual', 'cancelled')),
+    weekly_plan_id INTEGER REFERENCES weekly_plans(id) ON DELETE SET NULL,
+    idea_followed INTEGER CHECK (idea_followed IS NULL OR idea_followed IN (0, 1)),
     entry_price REAL,
     stop_loss REAL,
     take_profit REAL,
@@ -114,6 +147,8 @@ CREATE TABLE IF NOT EXISTS trades (
 CREATE INDEX IF NOT EXISTS idx_moods_user_date ON moods(user_id, entry_date);
 CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades(user_id, traded_at);
 CREATE INDEX IF NOT EXISTS idx_circle_members_circle ON circle_members(circle_id);
+CREATE INDEX IF NOT EXISTS idx_weekly_plans_user_week ON weekly_plans(user_id, week_start);
+CREATE INDEX IF NOT EXISTS idx_weekly_plan_images_plan ON weekly_plan_images(plan_id);
 """
 
 
@@ -141,6 +176,8 @@ MIGRATION_COLUMNS = {
         "entry_trigger": "TEXT NOT NULL DEFAULT ''",
         "trade_invalidation": "TEXT NOT NULL DEFAULT ''",
         "outcome_type": "TEXT NOT NULL DEFAULT '' CHECK (outcome_type IN ('', 'take', 'stop', 'breakeven', 'manual', 'cancelled'))",
+        "weekly_plan_id": "INTEGER",
+        "idea_followed": "INTEGER CHECK (idea_followed IS NULL OR idea_followed IN (0, 1))",
         "circle_id": "INTEGER",
     },
 }

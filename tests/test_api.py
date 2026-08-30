@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from aiohttp import FormData
 from aiohttp.test_utils import TestClient, TestServer
 
 from journal.app import create_app
@@ -95,6 +96,46 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
 
         response = await self.client.post("/api/trades", json={**payload, "client_entry_id": "entry_bad_123", "risk_amount": -1})
         self.assertEqual(response.status, 400)
+
+    async def test_weekly_plan_image_trade_link_and_daily_result(self) -> None:
+        response = await self.client.post("/api/weekly-plans", json={
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "Золото от поддержки", "idea": "Ищу продолжение роста",
+            "trade_plan": "Вход после возврата уровня", "invalidation": "Ниже 4400",
+            "visibility": "private",
+        })
+        self.assertEqual(response.status, 201)
+        plan = (await response.json())["plan"]
+
+        form = FormData()
+        form.add_field(
+            "image", b"\x89PNG\r\n\x1a\nchart",
+            filename="plan.png", content_type="image/png",
+        )
+        response = await self.client.post(
+            f"/api/weekly-plans/{plan['id']}/images", data=form
+        )
+        self.assertEqual(response.status, 201)
+        image = (await response.json())["image"]
+        response = await self.client.get(image["url"])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.content_type, "image/png")
+
+        response = await self.client.post("/api/trades", json={
+            "traded_at": "2026-08-28T10:30:00", "symbol": "XAUUSD",
+            "direction": "BUY", "status": "closed", "outcome_type": "take",
+            "weekly_plan_id": plan["id"], "idea_followed": True,
+            "risk_amount": 100, "pnl": 200, "plan_followed": True,
+            "visibility": "private",
+        })
+        self.assertEqual(response.status, 201)
+
+        response = await self.client.get("/api/weekly-plans?week=2026-08-27")
+        weekly = (await response.json())["plans"][0]
+        self.assertEqual(weekly["week_start"], "2026-08-24")
+        self.assertEqual(weekly["pnl"], 200.0)
+        self.assertEqual(weekly["idea_rate"], 100.0)
+        self.assertEqual(weekly["days"][0]["day"], "2026-08-28")
 
     async def test_bootstrap_uses_client_local_date(self) -> None:
         await self.client.put("/api/moods/2030-01-02", json={

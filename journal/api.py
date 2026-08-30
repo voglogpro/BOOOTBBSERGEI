@@ -4,7 +4,9 @@ import re
 import math
 import csv
 import io
+import secrets
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -18,6 +20,7 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 SYMBOL_RE = re.compile(r"^[A-Z0-9._-]{2,20}$")
 CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+MAX_PLAN_IMAGE_BYTES = 6 * 1024 * 1024
 
 
 class ApiError(ValueError):
@@ -96,6 +99,61 @@ def _period(request: web.Request) -> tuple[str, str]:
     return start.isoformat(), end.isoformat()
 
 
+def _week_start(value: str) -> str:
+    selected = date.fromisoformat(_date(value))
+    return (selected - timedelta(days=selected.weekday())).isoformat()
+
+
+def _weekly_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    symbol = _text(payload, "symbol", 20).upper()
+    if not SYMBOL_RE.fullmatch(symbol):
+        raise ApiError("Укажите корректный торговый символ")
+    bias = _text(payload, "bias", 10, "NEUTRAL").upper()
+    if bias not in {"LONG", "SHORT", "NEUTRAL"}:
+        raise ApiError("Некорректное направление недельной идеи")
+    status = _text(payload, "status", 10, "active").lower()
+    if status not in {"active", "reviewed"}:
+        raise ApiError("Некорректный статус недельного плана")
+    visibility = _text(payload, "visibility", 10, "team")
+    if visibility not in {"private", "team"}:
+        raise ApiError("Некорректная видимость")
+    rating = _number(payload, "rating")
+    if rating is not None and (not rating.is_integer() or not 1 <= rating <= 5):
+        raise ApiError("Оценка недели должна быть от 1 до 5")
+    idea = _text(payload, "idea", 2000)
+    if not idea:
+        raise ApiError("Опишите торговую идею на неделю")
+    selected_week = _text(payload, "week_start", 10) or date.today().isoformat()
+    return {
+        "week_start": _week_start(selected_week),
+        "symbol": symbol,
+        "bias": bias,
+        "title": _text(payload, "title", 120),
+        "idea": idea,
+        "trade_plan": _text(payload, "trade_plan", 2000),
+        "invalidation": _text(payload, "invalidation", 1000),
+        "status": status,
+        "week_summary": _text(payload, "week_summary", 2000),
+        "week_lesson": _text(payload, "week_lesson", 1000),
+        "rating": int(rating) if rating is not None else None,
+        "visibility": visibility,
+    }
+
+
+def _plan_image_type(content: bytes) -> tuple[str, str] | None:
+    if content.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg", ".jpg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png", ".png"
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+    return None
+
+
+def _plan_image_directory(repo: JournalRepository) -> Path:
+    return repo.database_path.parent / "uploads" / "weekly_plans"
+
+
 def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     traded_at = _text(payload, "traded_at", 32)
     if not traded_at:
@@ -146,6 +204,18 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         not confidence_before.is_integer() or not 1 <= confidence_before <= 5
     ):
         raise ApiError("Уверенность перед входом должна быть от 1 до 5")
+    weekly_plan_id = _number(payload, "weekly_plan_id")
+    if weekly_plan_id is not None and (
+        not weekly_plan_id.is_integer() or weekly_plan_id <= 0
+    ):
+        raise ApiError("Некорректный недельный план")
+    idea_followed_raw = payload.get("idea_followed")
+    if idea_followed_raw in (None, ""):
+        idea_followed = None
+    elif isinstance(idea_followed_raw, bool):
+        idea_followed = 1 if idea_followed_raw else 0
+    else:
+        raise ApiError("Некорректная отметка следования недельной идее")
 
     positive_values = {}
     for key in ("entry_price", "stop_loss", "take_profit", "volume", "risk_amount"):
@@ -182,6 +252,8 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "entry_trigger": _text(payload, "entry_trigger", 500),
         "trade_invalidation": _text(payload, "trade_invalidation", 500),
         "outcome_type": outcome_type,
+        "weekly_plan_id": int(weekly_plan_id) if weekly_plan_id is not None else None,
+        "idea_followed": idea_followed,
         **positive_values,
         "pnl": pnl,
         "r_multiple": r_multiple,
@@ -214,9 +286,13 @@ async def bootstrap(request: web.Request) -> web.Response:
         user["id"], start_date=start, end_date=today, scope="me"
     )
     settings = await repo.get_settings(user["id"])
+    weekly_plans = await repo.list_weekly_plans(
+        user["id"], week_start=_week_start(today), scope="me"
+    )
     return web.json_response(
         {"user": user, "circle": circle, "settings": settings,
-         "today_mood": mood, "today_trades": trades, "stats": stats}
+         "today_mood": mood, "today_trades": trades, "stats": stats,
+         "weekly_plans": weekly_plans}
     )
 
 
@@ -318,6 +394,114 @@ async def stats(request: web.Request) -> web.Response:
     return web.json_response({"from": start, "to": end, "stats": result})
 
 
+async def list_weekly_plans(request: web.Request) -> web.Response:
+    week = _week_start(request.query.get("week", date.today().isoformat()))
+    plans = await _repo(request).list_weekly_plans(
+        _user(request)["id"], week_start=week, scope=_scope(request)
+    )
+    return web.json_response({"week_start": week, "plans": plans})
+
+
+async def create_weekly_plan(request: web.Request) -> web.Response:
+    plan = await _repo(request).save_weekly_plan(
+        _user(request)["id"], _weekly_plan_payload(await _json(request))
+    )
+    return web.json_response({"plan": plan}, status=201)
+
+
+async def update_weekly_plan(request: web.Request) -> web.Response:
+    plan = await _repo(request).save_weekly_plan(
+        _user(request)["id"],
+        _weekly_plan_payload(await _json(request)),
+        int(request.match_info["plan_id"]),
+    )
+    return web.json_response({"plan": plan})
+
+
+def _remove_plan_image(repo: JournalRepository, storage_name: str) -> None:
+    directory = _plan_image_directory(repo).resolve()
+    target = (directory / storage_name).resolve()
+    if target.parent == directory:
+        try:
+            target.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+async def delete_weekly_plan(request: web.Request) -> web.Response:
+    repo = _repo(request)
+    files = await repo.delete_weekly_plan(
+        _user(request)["id"], int(request.match_info["plan_id"])
+    )
+    for storage_name in files:
+        _remove_plan_image(repo, storage_name)
+    return web.json_response({"deleted": True})
+
+
+async def upload_weekly_plan_image(request: web.Request) -> web.Response:
+    repo = _repo(request)
+    plan_id = int(request.match_info["plan_id"])
+    reader = await request.multipart()
+    field = await reader.next()
+    if field is None or field.name != "image" or not field.filename:
+        raise ApiError("Выберите фотографию торгового плана")
+    content = await field.read(decode=False)
+    if not content:
+        raise ApiError("Фотография пустая")
+    if len(content) > MAX_PLAN_IMAGE_BYTES:
+        raise ApiError("Фотография должна быть меньше 6 МБ")
+    detected = _plan_image_type(content)
+    if detected is None:
+        raise ApiError("Поддерживаются JPG, PNG и WebP")
+    mime_type, extension = detected
+    directory = _plan_image_directory(repo)
+    directory.mkdir(parents=True, exist_ok=True)
+    storage_name = f"{_user(request)['id']}_{secrets.token_urlsafe(18)}{extension}"
+    target = directory / storage_name
+    target.write_bytes(content)
+    try:
+        image = await repo.add_weekly_plan_image(
+            _user(request)["id"],
+            plan_id,
+            {
+                "storage_name": storage_name,
+                "original_name": Path(field.filename).name[:160],
+                "mime_type": mime_type,
+                "size_bytes": len(content),
+            },
+        )
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    image["url"] = f"/api/weekly-plan-images/{image['id']}"
+    image.pop("storage_name", None)
+    return web.json_response({"image": image}, status=201)
+
+
+async def weekly_plan_image(request: web.Request) -> web.StreamResponse:
+    repo = _repo(request)
+    image = await repo.get_weekly_plan_image(
+        _user(request)["id"], int(request.match_info["image_id"])
+    )
+    directory = _plan_image_directory(repo).resolve()
+    target = (directory / str(image["storage_name"])).resolve()
+    if target.parent != directory or not target.is_file():
+        raise ApiError("Файл фотографии не найден", status=404, code="not_found")
+    response = web.FileResponse(target)
+    response.content_type = str(image["mime_type"])
+    response.headers["Content-Disposition"] = "inline"
+    return response
+
+
+async def delete_weekly_plan_image(request: web.Request) -> web.Response:
+    repo = _repo(request)
+    storage_name = await repo.delete_weekly_plan_image(
+        _user(request)["id"], int(request.match_info["image_id"])
+    )
+    _remove_plan_image(repo, storage_name)
+    return web.json_response({"deleted": True})
+
+
 async def save_settings(request: web.Request) -> web.Response:
     payload = await _json(request)
     balance = _number(payload, "balance", required=True)
@@ -366,6 +550,8 @@ async def export_trades(request: web.Request) -> web.Response:
         "day_key_levels", "day_invalidation", "day_news_context", "day_mood",
         "day_energy", "day_confidence", "day_discipline", "day_emotion", "day_focus",
         "day_lesson",
+        "weekly_plan_id", "weekly_plan_title", "weekly_plan_idea",
+        "weekly_plan_trade_plan", "weekly_plan_invalidation", "idea_followed",
     ]
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
@@ -407,6 +593,13 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/trades/{trade_id}", delete_trade),
         web.get("/api/calendar", calendar),
         web.get("/api/stats", stats),
+        web.get("/api/weekly-plans", list_weekly_plans),
+        web.post("/api/weekly-plans", create_weekly_plan),
+        web.put("/api/weekly-plans/{plan_id}", update_weekly_plan),
+        web.delete("/api/weekly-plans/{plan_id}", delete_weekly_plan),
+        web.post("/api/weekly-plans/{plan_id}/images", upload_weekly_plan_image),
+        web.get("/api/weekly-plan-images/{image_id}", weekly_plan_image),
+        web.delete("/api/weekly-plan-images/{image_id}", delete_weekly_plan_image),
         web.put("/api/settings", save_settings),
         web.get("/api/export", export_trades),
         web.post("/api/circles", create_circle),
