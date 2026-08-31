@@ -61,6 +61,65 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(visible, [])
 
+    async def test_trade_image_metadata_and_permissions_follow_trade(self) -> None:
+        circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
+        await self.repo.join_circle(self.friend["id"], circle["invite_code"])
+        trade = await self.repo.create_trade(self.owner["id"], self.trade())
+        image, previous = await self.repo.save_trade_image(
+            self.owner["id"], trade["id"], "entry", {
+                "storage_name": "owner_entry.png", "original_name": "chart.png",
+                "mime_type": "image/png", "size_bytes": 12,
+            },
+        )
+        self.assertIsNone(previous)
+
+        visible = await self.repo.list_trades(
+            self.friend["id"], start_date="2026-08-28", end_date="2026-08-28",
+            scope="team",
+        )
+        self.assertEqual(visible[0]["images"][0]["kind"], "entry")
+        self.assertNotIn("storage_name", visible[0]["images"][0])
+        shared = await self.repo.get_trade_image(self.friend["id"], image["id"])
+        self.assertEqual(shared["storage_name"], "owner_entry.png")
+        with self.assertRaises(RepositoryError):
+            await self.repo.delete_trade_image(self.friend["id"], image["id"])
+
+        private_trade = await self.repo.create_trade(
+            self.owner["id"], self.trade(symbol="EURUSD", visibility="private")
+        )
+        private_image, _ = await self.repo.save_trade_image(
+            self.owner["id"], private_trade["id"], "result", {
+                "storage_name": "private_result.jpg", "original_name": "result.jpg",
+                "mime_type": "image/jpeg", "size_bytes": 10,
+            },
+        )
+        with self.assertRaises(RepositoryError):
+            await self.repo.get_trade_image(self.friend["id"], private_image["id"])
+
+    async def test_trade_image_slot_is_replaced_and_deleted_with_trade(self) -> None:
+        trade = await self.repo.create_trade(
+            self.owner["id"], self.trade(visibility="private")
+        )
+        first, previous = await self.repo.save_trade_image(
+            self.owner["id"], trade["id"], "entry", {
+                "storage_name": "first.png", "original_name": "first.png",
+                "mime_type": "image/png", "size_bytes": 8,
+            },
+        )
+        self.assertIsNone(previous)
+        second, previous = await self.repo.save_trade_image(
+            self.owner["id"], trade["id"], "entry", {
+                "storage_name": "second.jpg", "original_name": "second.jpg",
+                "mime_type": "image/jpeg", "size_bytes": 9,
+            },
+        )
+        self.assertEqual(second["id"], first["id"])
+        self.assertEqual(previous, "first.png")
+        files = await self.repo.delete_trade(self.owner["id"], trade["id"])
+        self.assertEqual(files, ["second.jpg"])
+        with self.assertRaises(RepositoryError):
+            await self.repo.get_trade_image(self.owner["id"], second["id"])
+
     async def test_mood_upsert_and_stats(self) -> None:
         mood = {
             "entry_date": "2026-08-28", "mood": 4, "energy": 3,

@@ -149,11 +149,24 @@ CREATE TABLE IF NOT EXISTS trades (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS trade_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id INTEGER NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('entry', 'result')),
+    storage_name TEXT NOT NULL UNIQUE,
+    original_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (trade_id, kind)
+);
+
 CREATE INDEX IF NOT EXISTS idx_moods_user_date ON moods(user_id, entry_date);
 CREATE INDEX IF NOT EXISTS idx_trades_user_date ON trades(user_id, traded_at);
 CREATE INDEX IF NOT EXISTS idx_circle_members_circle ON circle_members(circle_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_plans_user_week ON weekly_plans(user_id, week_start);
 CREATE INDEX IF NOT EXISTS idx_weekly_plan_images_plan ON weekly_plan_images(plan_id);
+CREATE INDEX IF NOT EXISTS idx_trade_images_trade ON trade_images(trade_id);
 """
 
 

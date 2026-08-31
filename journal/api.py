@@ -20,7 +20,8 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 SYMBOL_RE = re.compile(r"^[A-Z0-9._-]{2,20}$")
 CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
-MAX_PLAN_IMAGE_BYTES = 6 * 1024 * 1024
+MAX_IMAGE_BYTES = 6 * 1024 * 1024
+MAX_PLAN_IMAGE_BYTES = MAX_IMAGE_BYTES
 
 
 class ApiError(ValueError):
@@ -152,6 +153,10 @@ def _plan_image_type(content: bytes) -> tuple[str, str] | None:
 
 def _plan_image_directory(repo: JournalRepository) -> Path:
     return repo.database_path.parent / "uploads" / "weekly_plans"
+
+
+def _trade_image_directory(repo: JournalRepository) -> Path:
+    return repo.database_path.parent / "uploads" / "trades"
 
 
 def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -389,9 +394,92 @@ async def update_trade(request: web.Request) -> web.Response:
 
 
 async def delete_trade(request: web.Request) -> web.Response:
-    await _repo(request).delete_trade(
+    repo = _repo(request)
+    files = await repo.delete_trade(
         _user(request)["id"], int(request.match_info["trade_id"])
     )
+    for storage_name in files:
+        _remove_image(_trade_image_directory(repo), storage_name)
+    return web.json_response({"deleted": True})
+
+
+def _remove_image(directory: Path, storage_name: str) -> None:
+    directory = directory.resolve()
+    target = (directory / storage_name).resolve()
+    if target.parent == directory:
+        try:
+            target.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+async def put_trade_image(request: web.Request) -> web.Response:
+    repo = _repo(request)
+    trade_id = int(request.match_info["trade_id"])
+    kind = request.match_info["kind"]
+    if kind not in {"entry", "result"}:
+        raise ApiError("Тип фотографии должен быть entry или result")
+    reader = await request.multipart()
+    field = await reader.next()
+    if field is None or field.name != "image" or not field.filename:
+        raise ApiError("Выберите скриншот сделки")
+    content = await field.read(decode=False)
+    if not content:
+        raise ApiError("Скриншот пустой")
+    if len(content) > MAX_IMAGE_BYTES:
+        raise ApiError("Скриншот должен быть меньше 6 МБ")
+    detected = _plan_image_type(content)
+    if detected is None:
+        raise ApiError("Поддерживаются JPG, PNG и WebP")
+    mime_type, extension = detected
+    directory = _trade_image_directory(repo)
+    directory.mkdir(parents=True, exist_ok=True)
+    storage_name = f"{_user(request)['id']}_{secrets.token_urlsafe(18)}{extension}"
+    target = directory / storage_name
+    target.write_bytes(content)
+    try:
+        image, previous_storage = await repo.save_trade_image(
+            _user(request)["id"],
+            trade_id,
+            kind,
+            {
+                "storage_name": storage_name,
+                "original_name": Path(field.filename.replace("\\", "/")).name[:160],
+                "mime_type": mime_type,
+                "size_bytes": len(content),
+            },
+        )
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+    if previous_storage and previous_storage != storage_name:
+        _remove_image(directory, previous_storage)
+    image["url"] = f"/api/trade-images/{image['id']}"
+    image.pop("storage_name", None)
+    return web.json_response({"image": image})
+
+
+async def trade_image(request: web.Request) -> web.StreamResponse:
+    repo = _repo(request)
+    image = await repo.get_trade_image(
+        _user(request)["id"], int(request.match_info["image_id"])
+    )
+    directory = _trade_image_directory(repo).resolve()
+    target = (directory / str(image["storage_name"])).resolve()
+    if target.parent != directory or not target.is_file():
+        raise ApiError("Файл фотографии не найден", status=404, code="not_found")
+    response = web.FileResponse(target)
+    response.content_type = str(image["mime_type"])
+    response.headers["Content-Disposition"] = "inline"
+    return response
+
+
+async def delete_trade_image(request: web.Request) -> web.Response:
+    repo = _repo(request)
+    storage_name = await repo.delete_trade_image(
+        _user(request)["id"], int(request.match_info["image_id"])
+    )
+    _remove_image(_trade_image_directory(repo), storage_name)
     return web.json_response({"deleted": True})
 
 
@@ -461,13 +549,7 @@ async def update_weekly_plan(request: web.Request) -> web.Response:
 
 
 def _remove_plan_image(repo: JournalRepository, storage_name: str) -> None:
-    directory = _plan_image_directory(repo).resolve()
-    target = (directory / storage_name).resolve()
-    if target.parent == directory:
-        try:
-            target.unlink(missing_ok=True)
-        except OSError:
-            pass
+    _remove_image(_plan_image_directory(repo), storage_name)
 
 
 async def delete_weekly_plan(request: web.Request) -> web.Response:
@@ -636,6 +718,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/trades", create_trade),
         web.put("/api/trades/{trade_id}", update_trade),
         web.delete("/api/trades/{trade_id}", delete_trade),
+        web.put("/api/trades/{trade_id}/images/{kind}", put_trade_image),
+        web.get("/api/trade-images/{image_id}", trade_image),
+        web.delete("/api/trade-images/{image_id}", delete_trade_image),
         web.get("/api/calendar", calendar),
         web.get("/api/stats", stats),
         web.get("/api/weekly-plans", list_weekly_plans),

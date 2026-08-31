@@ -57,7 +57,9 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
                  "idea_followed", "countertrend_confirmed", "circle_id"}
                 <= trade_columns
             )
-            self.assertTrue({"weekly_plans", "weekly_plan_images"} <= tables)
+            self.assertTrue(
+                {"weekly_plans", "weekly_plan_images", "trade_images"} <= tables
+            )
 
 
 if __name__ == "__main__":

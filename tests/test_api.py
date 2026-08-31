@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,9 +15,10 @@ from journal.config import Settings
 class ApiTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
+        self.database_path = Path(self.temp.name) / "api.sqlite3"
         settings = Settings(
             bot_token="",
-            database_path=Path(self.temp.name) / "api.sqlite3",
+            database_path=self.database_path,
             dev_mode=True,
             dev_user_id=999,
             dev_user_name="Локальный трейдер",
@@ -143,6 +145,121 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         day = (await response.json())["days"][0]
         self.assertEqual(day["idea_followed"], 1)
         self.assertEqual(day["idea_broken"], 0)
+
+    async def test_trade_image_upload_replace_list_delete_and_trade_cleanup(self) -> None:
+        response = await self.client.post("/api/trades", json={
+            "traded_at": "2026-08-28T10:30:00", "symbol": "XAUUSD",
+            "direction": "BUY", "status": "closed", "pnl": 0,
+            "plan_followed": True, "visibility": "private",
+        })
+        trade = (await response.json())["trade"]
+        directory = self.database_path.parent / "uploads" / "trades"
+
+        form = FormData()
+        form.add_field(
+            "image", b"\x89PNG\r\n\x1a\nentry", filename="entry.png",
+            content_type="image/png",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/entry", data=form
+        )
+        self.assertEqual(response.status, 200)
+        entry = (await response.json())["image"]
+        self.assertEqual(entry["kind"], "entry")
+        self.assertNotIn("storage_name", entry)
+        first_files = list(directory.iterdir())
+        self.assertEqual(len(first_files), 1)
+
+        response = await self.client.get(entry["url"])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.content_type, "image/png")
+
+        form = FormData()
+        form.add_field(
+            "image", b"\xff\xd8\xffreplacement", filename="replacement.jpg",
+            content_type="image/jpeg",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/entry", data=form
+        )
+        self.assertEqual(response.status, 200)
+        replaced = (await response.json())["image"]
+        self.assertEqual(replaced["id"], entry["id"])
+        self.assertFalse(first_files[0].exists())
+        self.assertEqual(len(list(directory.iterdir())), 1)
+
+        response = await self.client.get(
+            "/api/trades?from=2026-08-28&to=2026-08-28"
+        )
+        listed = (await response.json())["trades"][0]
+        self.assertEqual(listed["images"][0]["url"], replaced["url"])
+        self.assertNotIn("storage_name", listed["images"][0])
+
+        response = await self.client.delete(replaced["url"])
+        self.assertEqual(response.status, 200)
+        self.assertEqual(list(directory.iterdir()), [])
+
+        form = FormData()
+        form.add_field(
+            "image", b"RIFF\x04\x00\x00\x00WEBPresult", filename="result.webp",
+            content_type="image/webp",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/result", data=form
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual(len(list(directory.iterdir())), 1)
+        response = await self.client.delete(f"/api/trades/{trade['id']}")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(list(directory.iterdir()), [])
+
+    async def test_trade_image_rejects_invalid_input_and_cleans_failed_upload(self) -> None:
+        response = await self.client.post("/api/trades", json={
+            "traded_at": "2026-08-28T10:30:00", "symbol": "XAUUSD",
+            "direction": "BUY", "status": "closed", "pnl": 0,
+            "plan_followed": True, "visibility": "private",
+        })
+        trade = (await response.json())["trade"]
+
+        form = FormData()
+        form.add_field(
+            "image", b"not-an-image", filename="chart.svg",
+            content_type="image/svg+xml",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/entry", data=form
+        )
+        self.assertEqual(response.status, 400)
+
+        form = FormData()
+        form.add_field(
+            "image", b"\x89PNG\r\n\x1a\nchart", filename="chart.png",
+            content_type="image/png",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/other", data=form
+        )
+        self.assertEqual(response.status, 400)
+
+        form = FormData()
+        form.add_field(
+            "image", io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"x" * (6 * 1024 * 1024)),
+            filename="too-large.png", content_type="image/png",
+        )
+        response = await self.client.put(
+            f"/api/trades/{trade['id']}/images/entry", data=form
+        )
+        self.assertEqual(response.status, 400)
+
+        form = FormData()
+        form.add_field(
+            "image", b"\x89PNG\r\n\x1a\norphan", filename="chart.png",
+            content_type="image/png",
+        )
+        response = await self.client.put("/api/trades/999999/images/entry", data=form)
+        self.assertEqual(response.status, 400)
+        directory = self.database_path.parent / "uploads" / "trades"
+        self.assertEqual(list(directory.iterdir()), [])
 
     async def test_bootstrap_uses_client_local_date(self) -> None:
         await self.client.put("/api/moods/2030-01-02", json={

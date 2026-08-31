@@ -668,7 +668,9 @@ class JournalRepository:
                     )
                     existing = await cursor.fetchone()
                     if existing is not None:
-                        return dict(existing)
+                        return await self._get_owned_trade(
+                            db, user_id, int(existing["id"])
+                        )
                 raise
             trade_id = int(cursor.lastrowid)
             await db.commit()
@@ -728,19 +730,142 @@ class JournalRepository:
         row = await cursor.fetchone()
         if row is None:
             raise RepositoryError("Сделка не найдена")
-        return dict(row)
+        trade = dict(row)
+        await self._attach_trade_images(db, [trade])
+        return trade
 
-    async def delete_trade(self, user_id: int, trade_id: int) -> None:
+    async def save_trade_image(
+        self, user_id: int, trade_id: int, kind: str, image: dict[str, Any]
+    ) -> tuple[dict[str, Any], str | None]:
+        if kind not in {"entry", "result"}:
+            raise RepositoryError("Некорректный тип фотографии сделки")
         db = await connect(self.database_path)
         try:
+            # Serialize replacements so concurrent retries cannot leave the
+            # previous successful upload orphaned on disk.
+            await db.execute("BEGIN IMMEDIATE")
+            await self._get_owned_trade(db, user_id, trade_id)
+            cursor = await db.execute(
+                "SELECT storage_name FROM trade_images WHERE trade_id=? AND kind=?",
+                (trade_id, kind),
+            )
+            previous = await cursor.fetchone()
+            await db.execute(
+                """
+                INSERT INTO trade_images(
+                    trade_id, kind, storage_name, original_name, mime_type, size_bytes
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(trade_id, kind) DO UPDATE SET
+                    storage_name=excluded.storage_name,
+                    original_name=excluded.original_name,
+                    mime_type=excluded.mime_type,
+                    size_bytes=excluded.size_bytes,
+                    created_at=CURRENT_TIMESTAMP
+                """,
+                (
+                    trade_id, kind, image["storage_name"], image["original_name"],
+                    image["mime_type"], image["size_bytes"],
+                ),
+            )
+            await db.commit()
+            cursor = await db.execute(
+                "SELECT * FROM trade_images WHERE trade_id=? AND kind=?",
+                (trade_id, kind),
+            )
+            saved = dict(await cursor.fetchone())
+            old_storage = str(previous["storage_name"]) if previous else None
+            return saved, old_storage
+        except Exception:
+            await db.rollback()
+            raise
+        finally:
+            await db.close()
+
+    async def get_trade_image(self, user_id: int, image_id: int) -> dict[str, Any]:
+        db = await connect(self.database_path)
+        try:
+            circle_id = await self._current_circle_id(db, user_id)
+            cursor = await db.execute(
+                """
+                SELECT i.* FROM trade_images i
+                JOIN trades t ON t.id=i.trade_id
+                WHERE i.id=? AND (
+                    t.user_id=? OR
+                    (? IS NOT NULL AND t.circle_id=? AND t.visibility='team')
+                )
+                """,
+                (image_id, user_id, circle_id, circle_id),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise RepositoryError("Фотография сделки не найдена")
+            return dict(row)
+        finally:
+            await db.close()
+
+    async def delete_trade_image(self, user_id: int, image_id: int) -> str:
+        db = await connect(self.database_path)
+        try:
+            cursor = await db.execute(
+                """
+                SELECT i.storage_name FROM trade_images i
+                JOIN trades t ON t.id=i.trade_id
+                WHERE i.id=? AND t.user_id=?
+                """,
+                (image_id, user_id),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise RepositoryError("Фотография сделки не найдена")
+            await db.execute("DELETE FROM trade_images WHERE id=?", (image_id,))
+            await db.commit()
+            return str(row["storage_name"])
+        finally:
+            await db.close()
+
+    async def delete_trade(self, user_id: int, trade_id: int) -> list[str]:
+        db = await connect(self.database_path)
+        try:
+            cursor = await db.execute(
+                """
+                SELECT i.storage_name FROM trade_images i
+                JOIN trades t ON t.id=i.trade_id
+                WHERE t.id=? AND t.user_id=?
+                """,
+                (trade_id, user_id),
+            )
+            files = [str(row["storage_name"]) for row in await cursor.fetchall()]
             cursor = await db.execute(
                 "DELETE FROM trades WHERE id=? AND user_id=?", (trade_id, user_id)
             )
             if cursor.rowcount != 1:
                 raise RepositoryError("Сделка не найдена")
             await db.commit()
+            return files
         finally:
             await db.close()
+
+    async def _attach_trade_images(
+        self, db: aiosqlite.Connection, trades: list[dict[str, Any]]
+    ) -> None:
+        if not trades:
+            return
+        by_id = {int(trade["id"]): trade for trade in trades}
+        for trade in trades:
+            trade["images"] = []
+        placeholders = ",".join("?" for _ in by_id)
+        cursor = await db.execute(
+            f"""
+            SELECT id, trade_id, kind, original_name, mime_type, size_bytes, created_at
+            FROM trade_images WHERE trade_id IN ({placeholders})
+            ORDER BY CASE kind WHEN 'entry' THEN 0 ELSE 1 END, id
+            """,
+            list(by_id),
+        )
+        for row in await cursor.fetchall():
+            item = dict(row)
+            item["url"] = f"/api/trade-images/{item['id']}"
+            by_id[int(item["trade_id"])]["images"].append(item)
 
     async def _scope_clause(
         self, db: aiosqlite.Connection, user_id: int, scope: str, table_alias: str = ""
@@ -794,7 +919,9 @@ class JournalRepository:
                  user_id, current_circle_id,
                  *params, start_date, end_date],
             )
-            return [dict(row) for row in await cursor.fetchall()]
+            trades = [dict(row) for row in await cursor.fetchall()]
+            await self._attach_trade_images(db, trades)
+            return trades
         finally:
             await db.close()
 
