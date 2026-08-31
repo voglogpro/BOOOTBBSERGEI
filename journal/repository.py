@@ -545,7 +545,14 @@ class JournalRepository:
         self, db: aiosqlite.Connection, user_id: int, trade: dict[str, Any]
     ) -> None:
         plan_id = trade.get("weekly_plan_id")
+        is_live_entry = (
+            str(trade.get("journal_mode", "backtest")) == "live"
+            and str(trade.get("status", "closed")) in {"open", "closed"}
+        )
+        entered_without_plan = trade.get("entered_without_plan") == 1
         if plan_id is None:
+            if is_live_entry and not entered_without_plan:
+                raise RepositoryError("Для реальной сделки выберите недельную идею")
             return
         cursor = await db.execute(
             "SELECT week_start, symbol, bias FROM weekly_plans WHERE id=? AND user_id=?",
@@ -564,14 +571,48 @@ class JournalRepository:
             (str(plan["bias"]) == "LONG" and str(trade["direction"]) == "SELL")
             or (str(plan["bias"]) == "SHORT" and str(trade["direction"]) == "BUY")
         )
+        cursor = await db.execute(
+            "SELECT market_bias FROM moods WHERE user_id=? AND entry_date=?",
+            (user_id, str(trade["traded_at"])[:10]),
+        )
+        day_plan = await cursor.fetchone()
+        day_bias = str(day_plan["market_bias"]) if day_plan is not None else "NEUTRAL"
+        opposite = opposite or (
+            (day_bias == "LONG" and str(trade["direction"]) == "SELL")
+            or (day_bias == "SHORT" and str(trade["direction"]) == "BUY")
+        )
         if (
             opposite
             and str(trade.get("status", "closed")) in {"open", "closed"}
+            and not entered_without_plan
             and trade.get("countertrend_confirmed") != 1
         ):
             raise RepositoryError(
                 "Контртрендовая сделка требует подтверждения разворота"
             )
+        if opposite and entered_without_plan:
+            trade["idea_followed"] = 0
+        if is_live_entry and not entered_without_plan:
+            if trade.get("trigger_confirmed") != 1:
+                raise RepositoryError("Сначала подтвердите, что триггер входа уже появился")
+            if len(str(trade.get("trigger_evidence", "")).strip()) < 12:
+                raise RepositoryError(
+                    "Опишите фактический сигнал входа минимум в 12 символах"
+                )
+            required_text = {
+                "trade_plan": "план сделки",
+                "entry_trigger": "триггер входа",
+                "trade_invalidation": "условие отмены сделки",
+            }
+            for field, label in required_text.items():
+                if not str(trade.get(field, "")).strip():
+                    raise RepositoryError(f"Перед входом заполните {label}")
+            if not trade.get("risk_amount") or trade.get("stop_loss") is None:
+                raise RepositoryError("Перед входом укажите риск и стоп")
+            if opposite and len(str(trade.get("countertrend_evidence", "")).strip()) < 12:
+                raise RepositoryError(
+                    "Опишите фактическое подтверждение разворота минимум в 12 символах"
+                )
 
     async def create_trade(self, user_id: int, trade: dict[str, Any]) -> dict[str, Any]:
         defaults = {
@@ -581,6 +622,9 @@ class JournalRepository:
             "trade_invalidation": "",
             "weekly_plan_id": None, "idea_followed": None,
             "countertrend_confirmed": None,
+            "countertrend_evidence": "", "trigger_confirmed": None,
+            "trigger_evidence": "",
+            "entered_without_plan": 0,
         }
         columns = [
             "traded_at", "symbol", "direction", "status", "client_entry_id",
@@ -588,12 +632,22 @@ class JournalRepository:
             "grade", "market_context", "journal_mode", "confidence_before",
             "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
             "weekly_plan_id", "idea_followed", "countertrend_confirmed",
+            "countertrend_evidence", "trigger_confirmed", "trigger_evidence",
+            "entered_without_plan",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
         ]
         db = await connect(self.database_path)
         try:
+            if (
+                str(trade.get("journal_mode", "backtest")) == "live"
+                and str(trade.get("status", "closed")) in {"open", "closed"}
+                and trade.get("entered_without_plan") != 1
+            ):
+                raise RepositoryError(
+                    "Сначала сохраните план сделки. Открыть её можно из сохранённого плана после появления триггера"
+                )
             await self._validate_weekly_plan_link(db, user_id, trade)
             circle_id = await self._current_circle_id(db, user_id)
             if trade["visibility"] != "team":
@@ -631,12 +685,17 @@ class JournalRepository:
             "entry_trigger": "", "trade_invalidation": "",
             "weekly_plan_id": None, "idea_followed": None,
             "countertrend_confirmed": None,
+            "countertrend_evidence": "", "trigger_confirmed": None,
+            "trigger_evidence": "",
+            "entered_without_plan": 0,
         }
         columns = [
             "traded_at", "symbol", "direction", "status", "timeframe", "session", "setup",
             "grade", "market_context", "journal_mode", "confidence_before",
             "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type",
             "weekly_plan_id", "idea_followed", "countertrend_confirmed",
+            "countertrend_evidence", "trigger_confirmed", "trigger_evidence",
+            "entered_without_plan",
             "entry_price", "stop_loss", "take_profit", "volume", "risk_amount",
             "pnl", "r_multiple", "emotion_before", "emotion_after", "plan_followed",
             "mistake", "note", "screenshot_url", "visibility",
@@ -712,6 +771,11 @@ class JournalRepository:
             cursor = await db.execute(
                 f"""
                 SELECT t.*, u.first_name, u.last_name, u.username,
+                       CASE WHEN t.user_id=? THEN COALESCE(
+                           (SELECT m.market_bias FROM moods m
+                            WHERE m.user_id=t.user_id
+                              AND m.entry_date=substr(t.traded_at, 1, 10)),
+                           'NEUTRAL') ELSE 'NEUTRAL' END AS day_plan_bias,
                        CASE WHEN wp.user_id=? OR
                                       (wp.circle_id=? AND wp.visibility='team')
                             THEN wp.title ELSE '' END AS weekly_plan_title,
@@ -726,7 +790,7 @@ class JournalRepository:
                 WHERE {clause} AND substr(traded_at, 1, 10) BETWEEN ? AND ?
                 ORDER BY traded_at DESC, t.id DESC
                 """,
-                [user_id, current_circle_id, user_id, current_circle_id,
+                [user_id, user_id, current_circle_id, user_id, current_circle_id,
                  user_id, current_circle_id,
                  *params, start_date, end_date],
             )

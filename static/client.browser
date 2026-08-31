@@ -439,9 +439,10 @@ function tradeRow(trade, animate = true) {
     ? `<span class="trade-idea-mark ${Number(trade.idea_followed) === 1 ? "" : "broken"}">${Number(trade.idea_followed) === 1 ? "По идее недели" : "Вне идеи недели"}</span>`
     : "";
   const countertrendMark = Number(trade.countertrend_confirmed) === 1 ? '<span class="trade-idea-mark countertrend">Разворот подтверждён</span>' : "";
+  const breachMark = Number(trade.entered_without_plan) === 1 ? '<span class="trade-idea-mark breach">Вход без допуска</span>' : "";
   return `<button class="trade-item${animate ? "" : " no-animate"}" data-trade-id="${trade.id}" data-own="${own}" type="button">
     <span class="trade-side ${String(trade.direction).toLowerCase()}">${trade.direction === "BUY" ? "BUY" : "SELL"}</span>
-    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small>${ideaMark}${countertrendMark}</span>
+    <span class="trade-main"><strong>${escapeHtml(trade.symbol)}${trade.setup ? ` · ${escapeHtml(trade.setup)}` : ""}</strong><small>${author} · ${formatDate(trade.traded_at, { hour: "2-digit", minute: "2-digit" })}${trade.session ? ` · ${escapeHtml(trade.session)}` : ""}</small>${ideaMark}${countertrendMark}${breachMark}</span>
     <span class="trade-result ${pnl > 0 && trade.status === "closed" ? "positive" : pnl < 0 && trade.status === "closed" ? "negative" : ""}">${result}<small>${trade.r_multiple == null ? tradeStatus(trade) : `${Number(trade.r_multiple).toFixed(2)}R`}</small></span>
   </button>`;
 }
@@ -613,13 +614,55 @@ function validateTradeStep(step) {
     if (!field.disabled && !field.checkValidity()) { field.reportValidity(); return false; }
   }
   const form = $("#trade-form");
+  const liveExecution = form.elements.journal_mode.value === "live" && ["open", "closed"].includes(form.elements.status.value);
+  const breach = form.elements.entered_without_plan.checked;
+  if (step === 2 && liveExecution && !breach) {
+    if (!form.elements.trade_id.value) {
+      showRequestError(new Error("Сначала сохраните эту запись как «Только план», затем откройте её после появления триггера"));
+      return false;
+    }
+    if (!form.elements.weekly_plan_id.value) {
+      showRequestError(new Error("Для реальной сделки выберите идею недели"));
+      showTradeStep(1); window.setTimeout(() => form.elements.weekly_plan_id.focus(), 0); return false;
+    }
+    for (const [name, message] of [
+      ["trade_plan", "Запишите план сделки до входа"],
+      ["entry_trigger", "Запишите проверяемый триггер входа"],
+      ["trade_invalidation", "Запишите условие отмены сделки"],
+    ]) {
+      if (!form.elements[name].value.trim()) {
+        showRequestError(new Error(message)); showTradeStep(1); window.setTimeout(() => form.elements[name].focus(), 0); return false;
+      }
+    }
+    if (!form.elements.trigger_confirmed.checked) {
+      showRequestError(new Error("Не входите раньше: сначала дождитесь фактического триггера"));
+      window.setTimeout(() => form.elements.trigger_confirmed.focus(), 0); return false;
+    }
+    if (form.elements.trigger_evidence.value.trim().length < 12) {
+      showRequestError(new Error("Опишите, какой фактический сигнал появился на графике"));
+      window.setTimeout(() => form.elements.trigger_evidence.focus(), 0); return false;
+    }
+    if (!(Number(form.elements.risk_amount.value) > 0) || form.elements.stop_loss.value === "") {
+      showRequestError(new Error("До входа укажите риск и стоп"));
+      window.setTimeout(() => form.elements.risk_amount.focus(), 0); return false;
+    }
+  }
   if (
     step === 2 && $("#trend-guard").dataset.state === "counter"
     && ["open", "closed"].includes(form.elements.status.value)
+    && !breach
     && !form.elements.countertrend_confirmed.checked
   ) {
     showRequestError(new Error("Перед контртрендовой сделкой подтвердите разворот"));
     showTradeStep(1); window.setTimeout(() => form.elements.countertrend_confirmed.focus(), 0); return false;
+  }
+  if (
+    step === 2 && liveExecution && !breach
+    && $("#trend-guard").dataset.state === "counter"
+    && form.elements.countertrend_evidence.value.trim().length < 12
+  ) {
+    showRequestError(new Error("Опишите, чем именно подтверждён разворот"));
+    showTradeStep(1); window.setTimeout(() => form.elements.countertrend_evidence.focus(), 0); return false;
   }
   return true;
 }
@@ -637,23 +680,55 @@ function populateWeeklyPlanOptions(selected = "", linkedTrade = null) {
 function updateTrendGuard() {
   const form = $("#trade-form"); const guard = $("#trend-guard");
   const option = form.elements.weekly_plan_id.selectedOptions[0]; const bias = option?.dataset.bias || "";
+  const dayBias = form.dataset.dayBias || "NEUTRAL";
   const direction = form.elements.direction.value; const expected = bias === "LONG" ? "BUY" : bias === "SHORT" ? "SELL" : "";
-  const counter = Boolean(expected && direction !== expected); const aligned = Boolean(expected && direction === expected);
+  const dayExpected = dayBias === "LONG" ? "BUY" : dayBias === "SHORT" ? "SELL" : "";
+  const expectations = [expected, dayExpected].filter(Boolean);
+  const planConflict = Boolean(expected && dayExpected && expected !== dayExpected);
+  const counter = expectations.some((value) => direction !== value);
+  const aligned = Boolean(expectations.length && !counter);
   guard.dataset.state = counter ? "counter" : aligned ? "aligned" : "none";
   $("#countertrend-confirm").classList.toggle("hidden", !counter);
+  $("#countertrend-evidence-field").classList.toggle("hidden", !counter);
   if (counter) {
-    $("#trend-guard-title").textContent = "Сделка против недельного направления";
-    $("#trend-guard-copy").textContent = "Не входите только потому, что цена кажется высокой или низкой. Сначала дождитесь подтверждения разворота.";
+    $("#trend-guard-title").textContent = planConflict ? "Дневной и недельный планы расходятся" : "Сделка против записанного направления";
+    $("#trend-guard-copy").textContent = planConflict ? "Сначала устраните противоречие в планах или опишите подтверждённый новый сценарий." : "Направление не совпадает с планом дня или недели. Нужен подтверждённый разворот, а не ощущение.";
     $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
   } else if (aligned) {
-    $("#trend-guard-title").textContent = "Направление совпадает с идеей недели";
-    $("#trend-guard-copy").textContent = "Теперь проверьте свой сетап, точку отмены и риск.";
+    $("#trend-guard-title").textContent = "Направление совпадает с планом";
+    $("#trend-guard-copy").textContent = "Идеи дня и недели проверены. Теперь дождитесь записанного триггера.";
     $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
     form.elements.countertrend_confirmed.checked = false;
   } else {
     $("#trend-guard-title").textContent = bias === "NEUTRAL" ? "Недельный план нейтральный" : "Выберите недельную идею";
     $("#trend-guard-copy").textContent = bias === "NEUTRAL" ? "Направление определяет подтверждённый сценарий сделки." : "Журнал сверит направление сделки с главным сценарием.";
     $("#trend-guard-icon").textContent = "→"; form.elements.countertrend_confirmed.checked = false;
+  }
+  updateEntryPermit();
+}
+
+function updateEntryPermit() {
+  const form = $("#trade-form"); const permit = $("#entry-permit");
+  if (!permit) return;
+  const executing = ["open", "closed"].includes(form.elements.status.value);
+  const visible = form.elements.journal_mode.value === "live" && executing;
+  permit.classList.toggle("hidden", !visible);
+  const breach = form.elements.entered_without_plan.checked;
+  const ready = !breach && form.elements.trigger_confirmed.checked && form.elements.trigger_evidence.value.trim().length >= 12;
+  permit.dataset.state = breach ? "breach" : ready ? "ready" : "waiting";
+  $("#trigger-confirm").classList.toggle("hidden", breach);
+  $("#trigger-evidence-field").classList.toggle("hidden", breach);
+  if (breach) {
+    $("#entry-permit-copy").textContent = "Это не разрешение на вход. Журнал честно отметит нарушение для будущей аналитики.";
+    form.elements.plan_followed.value = "false";
+    if (!form.elements.grade.value) form.elements.grade.value = "D";
+    if (!form.elements.mistake.value) form.elements.mistake.value = "Вход без допуска журнала";
+  } else if (!form.elements.trade_id.value) {
+    $("#entry-permit-copy").textContent = "Сначала сохраните «Только план». После появления триггера вернитесь сюда и откройте сделку.";
+  } else if (ready) {
+    $("#entry-permit-copy").textContent = "План был сохранён заранее, направление проверено, триггер подтверждён.";
+  } else {
+    $("#entry-permit-copy").textContent = "План сохранён. Теперь дождитесь фактического триггера — раньше вход запрещён вашей системой.";
   }
 }
 
@@ -671,8 +746,9 @@ function autoLinkWeeklyPlan(force = false) {
 function openTradeDialog(trade = null, readOnly = false) {
   const dialog = $("#trade-dialog"); const form = $("#trade-form");
   form.reset(); setTradeReadOnly(false);
+  form.dataset.dayBias = state.bootstrap?.today_mood?.market_bias || "NEUTRAL";
   form.elements.traded_at.value = `${state.journalDay || todayISO()}T${localDateTimeValue().slice(11, 16)}`; form.elements.symbol.value = "XAUUSD";
-  form.elements.timeframe.value = "M15"; form.elements.status.value = "closed";
+  form.elements.timeframe.value = "M15"; form.elements.status.value = "planned";
   form.elements.journal_mode.value = state.bootstrap?.today_mood?.journal_mode || "backtest";
   form.elements.confidence_before.value = state.bootstrap?.today_mood?.confidence || 3;
   form.elements.plan_followed.value = "true"; form.elements.visibility.value = state.circle ? "team" : "private";
@@ -681,14 +757,17 @@ function openTradeDialog(trade = null, readOnly = false) {
   populateWeeklyPlanOptions();
   $("#delete-trade").classList.add("hidden");
   if (trade) {
-    const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "journal_mode", "confidence_before", "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type", "weekly_plan_id", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
+    const fields = ["symbol", "direction", "status", "timeframe", "session", "setup", "grade", "market_context", "journal_mode", "confidence_before", "trade_plan", "entry_trigger", "trade_invalidation", "outcome_type", "weekly_plan_id", "countertrend_evidence", "trigger_evidence", "entry_price", "stop_loss", "take_profit", "volume", "risk_amount", "pnl", "r_multiple", "emotion_before", "emotion_after", "mistake", "note", "screenshot_url", "visibility"];
     populateWeeklyPlanOptions(trade.weekly_plan_id, trade);
     form.elements.trade_id.value = trade.id; form.elements.client_entry_id.value = trade.client_entry_id || "";
+    form.dataset.dayBias = trade.day_plan_bias || "NEUTRAL";
     form.elements.traded_at.value = String(trade.traded_at).slice(0, 16);
     for (const field of fields) form.elements[field].value = trade[field] ?? "";
     form.elements.plan_followed.value = Number(trade.plan_followed) === 1 ? "true" : "false";
     form.elements.idea_followed.value = trade.idea_followed == null ? "" : Number(trade.idea_followed) === 1 ? "true" : "false";
     form.elements.countertrend_confirmed.checked = Number(trade.countertrend_confirmed) === 1;
+    form.elements.trigger_confirmed.checked = Number(trade.trigger_confirmed) === 1;
+    form.elements.entered_without_plan.checked = Number(trade.entered_without_plan) === 1;
     form.dataset.outcomeChoice = trade.outcome_type || (Number(trade.pnl) > 0 ? "take" : Number(trade.pnl) < 0 ? "stop" : trade.status === "closed" ? "breakeven" : "");
     form.elements.outcome_type.value = form.dataset.outcomeChoice;
     $("#delete-trade").classList.remove("hidden");
@@ -710,6 +789,13 @@ function tradePayload(form) {
   payload.plan_followed = payload.plan_followed === "true";
   payload.idea_followed = payload.idea_followed === "" ? null : payload.idea_followed === "true";
   payload.countertrend_confirmed = $("#trend-guard").dataset.state === "counter" ? form.elements.countertrend_confirmed.checked : null;
+  payload.trigger_confirmed = form.elements.trigger_confirmed.checked;
+  payload.entered_without_plan = form.elements.entered_without_plan.checked;
+  if (payload.entered_without_plan) {
+    payload.plan_followed = false;
+    if (payload.grade === "") payload.grade = "D";
+    if (payload.mistake === "") payload.mistake = "Вход без допуска журнала";
+  }
   if (payload.countertrend_confirmed && payload.idea_followed == null) payload.idea_followed = true;
   return payload;
 }
@@ -738,6 +824,7 @@ function updateTradeStage() {
   else if (!closed) { form.elements.outcome_type.value = ""; form.dataset.outcomeChoice = ""; }
   else if (form.dataset.outcomeChoice === "cancelled") { form.elements.outcome_type.value = ""; form.dataset.outcomeChoice = ""; }
   updateRPreview();
+  updateEntryPermit();
 }
 
 function chooseOutcome(kind) {
@@ -935,7 +1022,7 @@ async function exportCsv() {
 }
 
 async function copyAnalysisPrompt() {
-  const prompt = `Проанализируй приложенный CSV моего торгового журнала как датасет бэктестов. Найди не советы по отдельным сделкам, а повторяющиеся закономерности. Сравни confidence_before, day_mood, day_energy, day_confidence и day_emotion с outcome_type, pnl, r_multiple, plan_followed, mistake, setup и session. Отдельно покажи: 1) условия, при которых у меня чаще стопы; 2) условия, при которых чаще тейки; 3) повторяющиеся ошибки и отклонения от плана; 4) сильные сетапы; 5) какие гипотезы проверить следующим бэктестом. Не делай уверенных выводов для группы меньше 5 сделок, указывай размер выборки и отличай корреляцию от причины. В конце дай короткий план из трёх проверяемых изменений.`;
+  const prompt = `Проанализируй приложенный CSV моего торгового журнала как датасет бэктестов. Найди не советы по отдельным сделкам, а повторяющиеся закономерности. Сравни confidence_before, day_mood, day_energy, day_confidence и day_emotion с outcome_type, pnl, r_multiple, plan_followed, entered_without_plan, trigger_confirmed, mistake, setup и session. Отдельно покажи: 1) условия, при которых у меня чаще стопы; 2) условия, при которых чаще тейки; 3) цену ранних входов и входов без допуска; 4) результаты сделок по идее и против недельной идеи; 5) повторяющиеся ошибки; 6) какие гипотезы проверить следующим бэктестом. Не делай уверенных выводов для группы меньше 5 сделок, указывай размер выборки и отличай корреляцию от причины. В конце дай короткий план из трёх проверяемых изменений.`;
   try { await navigator.clipboard.writeText(prompt); }
   catch (_) { const input = document.createElement("textarea"); input.value = prompt; input.style.position = "fixed"; input.style.opacity = "0"; document.body.appendChild(input); input.select(); document.execCommand("copy"); input.remove(); }
   haptic(); toast("Запрос для анализа скопирован");
@@ -984,6 +1071,10 @@ function bindEvents() {
   $("#trade-form").elements.traded_at.addEventListener("change", () => autoLinkWeeklyPlan(true));
   $("#trade-form").elements.direction.addEventListener("change", updateTrendGuard);
   $("#trade-form").elements.weekly_plan_id.addEventListener("change", updateTrendGuard);
+  $("#trade-form").elements.journal_mode.addEventListener("change", updateEntryPermit);
+  $("#trade-form").elements.trigger_confirmed.addEventListener("change", updateEntryPermit);
+  $("#trade-form").elements.trigger_evidence.addEventListener("input", updateEntryPermit);
+  $("#trade-form").elements.entered_without_plan.addEventListener("change", updateEntryPermit);
   $("#trade-form").elements.countertrend_confirmed.addEventListener("change", (event) => {
     if (event.target.checked && $("#trade-form").elements.idea_followed.value === "") $("#trade-form").elements.idea_followed.value = "true";
   });

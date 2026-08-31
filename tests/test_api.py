@@ -153,6 +153,20 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual((await response.json())["today_mood"]["mood"], 4)
 
+    async def test_entry_without_journal_permit_is_recorded_as_violation(self) -> None:
+        response = await self.client.post("/api/trades", json={
+            "traded_at": "2026-08-31T09:15:00", "symbol": "XAUUSD",
+            "direction": "SELL", "status": "open", "journal_mode": "live",
+            "entered_without_plan": True, "pnl": 0,
+            "plan_followed": True, "visibility": "private",
+        })
+        self.assertEqual(response.status, 201)
+        trade = (await response.json())["trade"]
+        self.assertEqual(trade["entered_without_plan"], 1)
+        self.assertEqual(trade["plan_followed"], 0)
+        self.assertEqual(trade["grade"], "D")
+        self.assertEqual(trade["mistake"], "Вход без допуска журнала")
+
     async def test_calendar_accepts_a_bounded_period_for_week_navigation(self) -> None:
         response = await self.client.get(
             "/api/calendar?from=2026-08-31&to=2026-10-04"

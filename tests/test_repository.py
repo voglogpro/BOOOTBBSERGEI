@@ -195,6 +195,55 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         ))
         self.assertEqual(trade["countertrend_confirmed"], 1)
 
+    async def test_live_trade_must_be_saved_as_plan_before_opening(self) -> None:
+        plan = await self.repo.save_weekly_plan(self.owner["id"], {
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "Покупки после подтверждения", "idea": "Работаю вверх",
+            "trade_plan": "Жду возврат уровня", "invalidation": "Ниже 4490",
+            "status": "active", "week_summary": "", "week_lesson": "",
+            "rating": None, "visibility": "private",
+        })
+        live_trade = self.trade(
+            status="open", journal_mode="live", weekly_plan_id=plan["id"],
+            trade_plan="Покупка после возврата", entry_trigger="Закрытие M15 выше 4500",
+            trade_invalidation="Закрытие ниже 4490", trigger_confirmed=1,
+            trigger_evidence="M15 закрылся выше 4500", pnl=0,
+        )
+        with self.assertRaisesRegex(RepositoryError, "Сначала сохраните план"):
+            await self.repo.create_trade(self.owner["id"], live_trade)
+
+        planned = await self.repo.create_trade(
+            self.owner["id"], {**live_trade, "status": "planned", "trigger_confirmed": 0}
+        )
+        opened = await self.repo.update_trade(
+            self.owner["id"], planned["id"], live_trade
+        )
+        self.assertEqual(opened["status"], "open")
+        self.assertEqual(opened["trigger_confirmed"], 1)
+
+    async def test_live_countertrend_requires_written_evidence(self) -> None:
+        plan = await self.repo.save_weekly_plan(self.owner["id"], {
+            "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
+            "title": "Покупки", "idea": "Основной сценарий вверх",
+            "trade_plan": "Только покупки", "invalidation": "Смена структуры",
+            "status": "active", "week_summary": "", "week_lesson": "",
+            "rating": None, "visibility": "private",
+        })
+        planned = await self.repo.create_trade(self.owner["id"], self.trade(
+            status="planned", journal_mode="live", direction="SELL",
+            weekly_plan_id=plan["id"], trade_plan="Продажа после разворота",
+            entry_trigger="Слом структуры M15", trade_invalidation="Возврат выше максимума",
+            countertrend_confirmed=1, pnl=0,
+        ))
+        with self.assertRaisesRegex(RepositoryError, "Опишите фактическое"):
+            await self.repo.update_trade(self.owner["id"], planned["id"], self.trade(
+                status="open", journal_mode="live", direction="SELL",
+                weekly_plan_id=plan["id"], trade_plan="Продажа после разворота",
+                entry_trigger="Слом структуры M15", trade_invalidation="Возврат выше максимума",
+                countertrend_confirmed=1, countertrend_evidence="мало",
+                trigger_confirmed=1, trigger_evidence="M15 сломал структуру вниз", pnl=0,
+            ))
+
     async def test_private_weekly_plan_details_are_not_exposed_with_shared_trade(self) -> None:
         circle = await self.repo.create_circle(self.owner["id"], "Дуэт")
         await self.repo.join_circle(self.friend["id"], circle["invite_code"])

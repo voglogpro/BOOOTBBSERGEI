@@ -223,6 +223,17 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         countertrend_confirmed = 1 if countertrend_raw else 0
     else:
         raise ApiError("Некорректная отметка подтверждения разворота")
+    trigger_raw = payload.get("trigger_confirmed")
+    if trigger_raw in (None, ""):
+        trigger_confirmed = None
+    elif isinstance(trigger_raw, bool):
+        trigger_confirmed = 1 if trigger_raw else 0
+    else:
+        raise ApiError("Некорректная отметка триггера входа")
+    entered_without_plan_raw = payload.get("entered_without_plan", False)
+    if not isinstance(entered_without_plan_raw, bool):
+        raise ApiError("Некорректная отметка входа без допуска")
+    entered_without_plan = 1 if entered_without_plan_raw else 0
 
     positive_values = {}
     for key in ("entry_price", "stop_loss", "take_profit", "volume", "risk_amount"):
@@ -241,6 +252,14 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
     screenshot_url = _text(payload, "screenshot_url", 1000)
     if screenshot_url and urlparse(screenshot_url).scheme not in {"http", "https"}:
         raise ApiError("Ссылка на скриншот должна начинаться с http:// или https://")
+
+    mistake = _text(payload, "mistake", 160)
+    if entered_without_plan:
+        plan_followed = False
+        if not grade:
+            grade = "D"
+        if not mistake:
+            mistake = "Вход без допуска журнала"
 
     return {
         "traded_at": traded_at,
@@ -262,13 +281,17 @@ def _trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "weekly_plan_id": int(weekly_plan_id) if weekly_plan_id is not None else None,
         "idea_followed": idea_followed,
         "countertrend_confirmed": countertrend_confirmed,
+        "countertrend_evidence": _text(payload, "countertrend_evidence", 500),
+        "trigger_confirmed": trigger_confirmed,
+        "trigger_evidence": _text(payload, "trigger_evidence", 500),
+        "entered_without_plan": entered_without_plan,
         **positive_values,
         "pnl": pnl,
         "r_multiple": r_multiple,
         "emotion_before": _text(payload, "emotion_before", 80),
         "emotion_after": _text(payload, "emotion_after", 80),
         "plan_followed": 1 if plan_followed else 0,
-        "mistake": _text(payload, "mistake", 160),
+        "mistake": mistake,
         "note": _text(payload, "note", 1200),
         "screenshot_url": screenshot_url,
         "visibility": visibility,
@@ -571,7 +594,9 @@ async def export_trades(request: web.Request) -> web.Response:
         "day_lesson",
         "weekly_plan_id", "weekly_plan_title", "weekly_plan_idea",
         "weekly_plan_trade_plan", "weekly_plan_invalidation", "idea_followed",
-        "countertrend_confirmed",
+        "countertrend_confirmed", "countertrend_evidence", "trigger_confirmed",
+        "trigger_evidence",
+        "entered_without_plan",
     ]
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
