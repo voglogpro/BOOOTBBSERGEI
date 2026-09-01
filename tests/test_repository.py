@@ -235,18 +235,18 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
                 symbol="EURUSD", weekly_plan_id=plan["id"], idea_followed=1,
             ))
 
-    async def test_countertrend_trade_requires_reversal_confirmation(self) -> None:
+    async def test_countertrend_trade_is_saved_without_forced_confirmation(self) -> None:
         plan = await self.repo.save_weekly_plan(self.owner["id"], {
             "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
             "title": "Тренд вверх", "idea": "Покупки", "trade_plan": "По тренду",
             "invalidation": "Смена структуры", "status": "active", "week_summary": "",
             "week_lesson": "", "rating": None, "visibility": "private",
         })
-        with self.assertRaises(RepositoryError):
-            await self.repo.create_trade(self.owner["id"], self.trade(
-                direction="SELL", weekly_plan_id=plan["id"],
-                countertrend_confirmed=0,
-            ))
+        unconfirmed = await self.repo.create_trade(self.owner["id"], self.trade(
+            direction="SELL", weekly_plan_id=plan["id"],
+            countertrend_confirmed=0,
+        ))
+        self.assertEqual(unconfirmed["idea_followed"], 0)
 
         trade = await self.repo.create_trade(self.owner["id"], self.trade(
             direction="SELL", weekly_plan_id=plan["id"],
@@ -280,7 +280,22 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(opened["status"], "open")
         self.assertEqual(opened["trigger_confirmed"], 1)
 
-    async def test_live_countertrend_requires_written_evidence(self) -> None:
+    async def test_live_saved_plan_allows_optional_journal_fields(self) -> None:
+        planned_payload = self.trade(
+            status="planned", journal_mode="live", weekly_plan_id=None,
+            trade_plan="", entry_trigger="", trade_invalidation="",
+            trigger_confirmed=0, trigger_evidence="", stop_loss=None,
+            risk_amount=None, pnl=0,
+        )
+        planned = await self.repo.create_trade(self.owner["id"], planned_payload)
+        opened = await self.repo.update_trade(
+            self.owner["id"], planned["id"], {**planned_payload, "status": "open"}
+        )
+        self.assertEqual(opened["status"], "open")
+        self.assertEqual(opened["trade_plan"], "")
+        self.assertIsNone(opened["risk_amount"])
+
+    async def test_live_countertrend_evidence_is_optional(self) -> None:
         plan = await self.repo.save_weekly_plan(self.owner["id"], {
             "week_start": "2026-08-24", "symbol": "XAUUSD", "bias": "LONG",
             "title": "Покупки", "idea": "Основной сценарий вверх",
@@ -294,14 +309,15 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
             entry_trigger="Слом структуры M15", trade_invalidation="Возврат выше максимума",
             countertrend_confirmed=1, pnl=0,
         ))
-        with self.assertRaisesRegex(RepositoryError, "Опишите фактическое"):
-            await self.repo.update_trade(self.owner["id"], planned["id"], self.trade(
-                status="open", journal_mode="live", direction="SELL",
-                weekly_plan_id=plan["id"], trade_plan="Продажа после разворота",
-                entry_trigger="Слом структуры M15", trade_invalidation="Возврат выше максимума",
-                countertrend_confirmed=1, countertrend_evidence="мало",
-                trigger_confirmed=1, trigger_evidence="M15 сломал структуру вниз", pnl=0,
-            ))
+        opened = await self.repo.update_trade(self.owner["id"], planned["id"], self.trade(
+            status="open", journal_mode="live", direction="SELL",
+            weekly_plan_id=plan["id"], trade_plan="Продажа после разворота",
+            entry_trigger="Слом структуры M15", trade_invalidation="Возврат выше максимума",
+            countertrend_confirmed=1, countertrend_evidence="мало",
+            trigger_confirmed=1, trigger_evidence="M15 сломал структуру вниз", pnl=0,
+        ))
+        self.assertEqual(opened["status"], "open")
+        self.assertEqual(opened["idea_followed"], 0)
 
     async def test_private_weekly_plan_details_are_not_exposed_with_shared_trade(self) -> None:
         circle = await self.repo.create_circle(self.owner["id"], "Дуэт")

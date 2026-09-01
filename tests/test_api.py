@@ -284,6 +284,25 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(trade["grade"], "D")
         self.assertEqual(trade["mistake"], "Вход без допуска журнала")
 
+    async def test_saved_live_trade_does_not_force_optional_fields(self) -> None:
+        payload = {
+            "traded_at": "2026-08-31T10:00:00", "symbol": "XAUUSD",
+            "direction": "BUY", "status": "planned", "journal_mode": "live",
+            "client_entry_id": "optional_live_001", "visibility": "private",
+        }
+        response = await self.client.post("/api/trades", json=payload)
+        self.assertEqual(response.status, 201)
+        trade_id = (await response.json())["trade"]["id"]
+
+        response = await self.client.put(
+            f"/api/trades/{trade_id}", json={**payload, "status": "open"}
+        )
+        self.assertEqual(response.status, 200)
+        trade = (await response.json())["trade"]
+        self.assertEqual(trade["status"], "open")
+        self.assertEqual(trade["trade_plan"], "")
+        self.assertIsNone(trade["weekly_plan_id"])
+
     async def test_calendar_accepts_a_bounded_period_for_week_navigation(self) -> None:
         response = await self.client.get(
             "/api/calendar?from=2026-08-31&to=2026-10-04"

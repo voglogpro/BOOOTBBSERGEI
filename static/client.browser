@@ -655,57 +655,6 @@ function validateTradeStep(step) {
   for (const field of $$("input, select, textarea", panel)) {
     if (!field.disabled && !field.checkValidity()) { field.reportValidity(); return false; }
   }
-  const form = $("#trade-form");
-  const liveExecution = form.elements.journal_mode.value === "live" && ["open", "closed"].includes(form.elements.status.value);
-  const breach = form.elements.entered_without_plan.checked;
-  if (step === 2 && liveExecution && !breach) {
-    if (!form.elements.trade_id.value) {
-      showRequestError(new Error("Сначала сохраните эту запись как «Только план», затем откройте её после появления триггера"));
-      return false;
-    }
-    if (!form.elements.weekly_plan_id.value) {
-      showRequestError(new Error("Для реальной сделки выберите идею недели"));
-      showTradeStep(1); window.setTimeout(() => form.elements.weekly_plan_id.focus(), 0); return false;
-    }
-    for (const [name, message] of [
-      ["trade_plan", "Запишите план сделки до входа"],
-      ["entry_trigger", "Запишите проверяемый триггер входа"],
-      ["trade_invalidation", "Запишите условие отмены сделки"],
-    ]) {
-      if (!form.elements[name].value.trim()) {
-        showRequestError(new Error(message)); showTradeStep(1); window.setTimeout(() => form.elements[name].focus(), 0); return false;
-      }
-    }
-    if (!form.elements.trigger_confirmed.checked) {
-      showRequestError(new Error("Не входите раньше: сначала дождитесь фактического триггера"));
-      window.setTimeout(() => form.elements.trigger_confirmed.focus(), 0); return false;
-    }
-    if (form.elements.trigger_evidence.value.trim().length < 12) {
-      showRequestError(new Error("Опишите, какой фактический сигнал появился на графике"));
-      window.setTimeout(() => form.elements.trigger_evidence.focus(), 0); return false;
-    }
-    if (!(Number(form.elements.risk_amount.value) > 0) || form.elements.stop_loss.value === "") {
-      showRequestError(new Error("До входа укажите риск и стоп"));
-      window.setTimeout(() => form.elements.risk_amount.focus(), 0); return false;
-    }
-  }
-  if (
-    step === 2 && $("#trend-guard").dataset.state === "counter"
-    && ["open", "closed"].includes(form.elements.status.value)
-    && !breach
-    && !form.elements.countertrend_confirmed.checked
-  ) {
-    showRequestError(new Error("Перед контртрендовой сделкой подтвердите разворот"));
-    showTradeStep(1); window.setTimeout(() => form.elements.countertrend_confirmed.focus(), 0); return false;
-  }
-  if (
-    step === 2 && liveExecution && !breach
-    && $("#trend-guard").dataset.state === "counter"
-    && form.elements.countertrend_evidence.value.trim().length < 12
-  ) {
-    showRequestError(new Error("Опишите, чем именно подтверждён разворот"));
-    showTradeStep(1); window.setTimeout(() => form.elements.countertrend_evidence.focus(), 0); return false;
-  }
   return true;
 }
 
@@ -734,11 +683,11 @@ function updateTrendGuard() {
   $("#countertrend-evidence-field").classList.toggle("hidden", !counter);
   if (counter) {
     $("#trend-guard-title").textContent = planConflict ? "Дневной и недельный планы расходятся" : "Сделка против записанного направления";
-    $("#trend-guard-copy").textContent = planConflict ? "Сначала устраните противоречие в планах или опишите подтверждённый новый сценарий." : "Направление не совпадает с планом дня или недели. Нужен подтверждённый разворот, а не ощущение.";
+    $("#trend-guard-copy").textContent = planConflict ? "Проверьте противоречие и при желании опишите новый сценарий." : "Направление не совпадает с планом дня или недели. Журнал сохранит сделку и отметит отклонение.";
     $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
   } else if (aligned) {
     $("#trend-guard-title").textContent = "Направление совпадает с планом";
-    $("#trend-guard-copy").textContent = "Идеи дня и недели проверены. Теперь дождитесь записанного триггера.";
+    $("#trend-guard-copy").textContent = "Идеи дня и недели совпадают. При желании отметьте свой триггер входа.";
     $("#trend-guard-icon").textContent = expected === "BUY" ? "↑" : "↓";
     form.elements.countertrend_confirmed.checked = false;
   } else {
@@ -756,21 +705,21 @@ function updateEntryPermit() {
   const visible = form.elements.journal_mode.value === "live" && executing;
   permit.classList.toggle("hidden", !visible);
   const breach = form.elements.entered_without_plan.checked;
-  const ready = !breach && form.elements.trigger_confirmed.checked && form.elements.trigger_evidence.value.trim().length >= 12;
+  const ready = !breach && form.elements.trigger_confirmed.checked;
   permit.dataset.state = breach ? "breach" : ready ? "ready" : "waiting";
   $("#trigger-confirm").classList.toggle("hidden", breach);
   $("#trigger-evidence-field").classList.toggle("hidden", breach);
   if (breach) {
-    $("#entry-permit-copy").textContent = "Это не разрешение на вход. Журнал честно отметит нарушение для будущей аналитики.";
+    $("#entry-permit-copy").textContent = "Журнал честно отметит вход до записи для будущей аналитики.";
     form.elements.plan_followed.value = "false";
     if (!form.elements.grade.value) form.elements.grade.value = "D";
     if (!form.elements.mistake.value) form.elements.mistake.value = "Вход без допуска журнала";
   } else if (!form.elements.trade_id.value) {
-    $("#entry-permit-copy").textContent = "Сначала сохраните «Только план». После появления триггера вернитесь сюда и откройте сделку.";
+    $("#entry-permit-copy").textContent = "Сначала сохраните короткий план, затем вернитесь к нему для записи входа.";
   } else if (ready) {
-    $("#entry-permit-copy").textContent = "План был сохранён заранее, направление проверено, триггер подтверждён.";
+    $("#entry-permit-copy").textContent = "Триггер отмечен. Можно продолжать запись сделки.";
   } else {
-    $("#entry-permit-copy").textContent = "План сохранён. Теперь дождитесь фактического триггера — раньше вход запрещён вашей системой.";
+    $("#entry-permit-copy").textContent = "План сохранён. Заполняйте только те отметки, которые нужны вашей системе.";
   }
 }
 
@@ -1186,7 +1135,7 @@ function bindEvents() {
   $("#trade-next").addEventListener("click", () => {
     if (!validateTradeStep(state.tradeStep)) return;
     const form = $("#trade-form");
-    if (state.tradeStep === 2 && form.elements.journal_mode.value !== "live" && ["planned", "open"].includes(form.elements.status.value)) {
+    if (state.tradeStep === 2 && ["planned", "open"].includes(form.elements.status.value)) {
       form.elements.status.value = "closed";
       const radio = $("input[name='status_choice'][value='closed']", form); if (radio) radio.checked = true;
       updateTradeStage();

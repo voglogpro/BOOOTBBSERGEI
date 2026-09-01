@@ -545,14 +545,7 @@ class JournalRepository:
         self, db: aiosqlite.Connection, user_id: int, trade: dict[str, Any]
     ) -> None:
         plan_id = trade.get("weekly_plan_id")
-        is_live_entry = (
-            str(trade.get("journal_mode", "backtest")) == "live"
-            and str(trade.get("status", "closed")) in {"open", "closed"}
-        )
-        entered_without_plan = trade.get("entered_without_plan") == 1
         if plan_id is None:
-            if is_live_entry and not entered_without_plan:
-                raise RepositoryError("Для реальной сделки выберите недельную идею")
             return
         cursor = await db.execute(
             "SELECT week_start, symbol, bias FROM weekly_plans WHERE id=? AND user_id=?",
@@ -581,38 +574,8 @@ class JournalRepository:
             (day_bias == "LONG" and str(trade["direction"]) == "SELL")
             or (day_bias == "SHORT" and str(trade["direction"]) == "BUY")
         )
-        if (
-            opposite
-            and str(trade.get("status", "closed")) in {"open", "closed"}
-            and not entered_without_plan
-            and trade.get("countertrend_confirmed") != 1
-        ):
-            raise RepositoryError(
-                "Контртрендовая сделка требует подтверждения разворота"
-            )
-        if opposite and entered_without_plan:
+        if opposite:
             trade["idea_followed"] = 0
-        if is_live_entry and not entered_without_plan:
-            if trade.get("trigger_confirmed") != 1:
-                raise RepositoryError("Сначала подтвердите, что триггер входа уже появился")
-            if len(str(trade.get("trigger_evidence", "")).strip()) < 12:
-                raise RepositoryError(
-                    "Опишите фактический сигнал входа минимум в 12 символах"
-                )
-            required_text = {
-                "trade_plan": "план сделки",
-                "entry_trigger": "триггер входа",
-                "trade_invalidation": "условие отмены сделки",
-            }
-            for field, label in required_text.items():
-                if not str(trade.get(field, "")).strip():
-                    raise RepositoryError(f"Перед входом заполните {label}")
-            if not trade.get("risk_amount") or trade.get("stop_loss") is None:
-                raise RepositoryError("Перед входом укажите риск и стоп")
-            if opposite and len(str(trade.get("countertrend_evidence", "")).strip()) < 12:
-                raise RepositoryError(
-                    "Опишите фактическое подтверждение разворота минимум в 12 символах"
-                )
 
     async def create_trade(self, user_id: int, trade: dict[str, Any]) -> dict[str, Any]:
         defaults = {
