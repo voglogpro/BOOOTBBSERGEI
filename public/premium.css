@@ -73,7 +73,7 @@ h1 em,h2 em{font-family:inherit;font-size:1.01em;font-style:italic;font-weight:4
 @media(max-width:700px){
   .grain{opacity:.34}
   /* Keep the fountain and the dipping strawberry inside a portrait crop. */
-  .scene-intro .scene-video{object-position:76% center}
+  .scene-intro .scene-video{object-position:66% center}
   .scene-experience .scene-video{object-position:48% center}
   .scene-details .scene-video{object-position:16% center}
   .intro-shade{background:linear-gradient(0deg,rgba(18,8,6,.9),rgba(18,8,6,.55) 48%,rgba(18,8,6,.1))}

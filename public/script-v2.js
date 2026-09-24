@@ -118,7 +118,22 @@
     let endTimer;
     let copyTimer;
     let journeyFrameRequest;
+    let journeyAnimationFrame;
     let outgoingPauseTimer;
+
+    // The second journey crosses a wide hall. A portrait crop must travel
+    // from the strawberry side to the fountain entering from the left.
+    function updateJourneyCrop() {
+      if (next !== 2) return;
+      if (!matchMedia('(max-width:700px)').matches) {
+        journeyVideo.style.objectPosition = '';
+        return;
+      }
+      const duration = Number.isFinite(journeyVideo.duration) ? journeyVideo.duration : 4;
+      const progress = Math.max(0, Math.min(1, journeyVideo.currentTime / duration));
+      const eased = progress * progress * (3 - 2 * progress);
+      journeyVideo.style.objectPosition = `${(48 - 32 * eased).toFixed(2)}% center`;
+    }
 
     // Seek while the travel footage still covers the next scene. Seeking at the
     // handoff used to show a poster or an undecoded first frame for ~1 second.
@@ -142,18 +157,23 @@
       if (!sceneVideo.paused && sceneVideo.readyState >= 2) revealScene();
     }
     function onJourneyProgress() {
+      updateJourneyCrop();
       const remaining = journeyVideo.duration - journeyVideo.currentTime;
       if (Number.isFinite(remaining) && remaining <= 0.28) primeScene();
     }
     function onJourneyFrame() {
       if (finished) return;
       onJourneyProgress();
-      if (primedSceneVideo !== sceneVideo) {
-        journeyFrameRequest = journeyVideo.requestVideoFrameCallback(onJourneyFrame);
-      }
+      journeyFrameRequest = journeyVideo.requestVideoFrameCallback(onJourneyFrame);
+    }
+    function onJourneyAnimationFrame() {
+      if (finished) return;
+      onJourneyProgress();
+      journeyAnimationFrame = requestAnimationFrame(onJourneyAnimationFrame);
     }
     function stopJourneyFrameWatch() {
       if (journeyFrameRequest != null) journeyVideo.cancelVideoFrameCallback(journeyFrameRequest);
+      if (journeyAnimationFrame != null) cancelAnimationFrame(journeyAnimationFrame);
     }
 
     function fallback() {
@@ -209,6 +229,7 @@
     journeyVideo.addEventListener('timeupdate', onJourneyProgress);
     startTimer = setTimeout(fallback, 8000);
     try { journeyVideo.currentTime = 0; } catch { /* The file is still loading. */ }
+    updateJourneyCrop();
     journeyVideo.play().then(() => {
       if (finished) return;
       clearTimeout(startTimer);
@@ -221,6 +242,8 @@
       }, 420);
       if (journeyVideo.requestVideoFrameCallback) {
         journeyFrameRequest = journeyVideo.requestVideoFrameCallback(onJourneyFrame);
+      } else {
+        journeyAnimationFrame = requestAnimationFrame(onJourneyAnimationFrame);
       }
       const duration = journeyVideo.duration;
       copyTimer = setTimeout(() => entering.classList.add('is-copy-visible'), Number.isFinite(duration) ? Math.min(1900, Math.max(520, duration * 180)) : 1800);
