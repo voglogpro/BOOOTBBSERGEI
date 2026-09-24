@@ -252,6 +252,7 @@
   }
 
   function goTo(index, force = false) {
+    if (document.body.classList.contains('is-loading')) return;
     const next = Math.max(0, Math.min(scenes.length - 1, index));
     if (next === active || traveling || (!force && Date.now() < lockedUntil)) return;
     if (!reduceMotion.matches) {
@@ -357,9 +358,37 @@
     }
   });
 
-  railProgress.style.height = (100 / scenes.length) + '%';
-  prepareVideo(scenes[0]);
-  playCurrent();
-  const hashIndex = scenes.findIndex(scene => '#' + scene.id === location.hash);
-  if (hashIndex > 0) commitScene(hashIndex);
+  async function startSite() {
+    await (window.sitePreloader?.ready || Promise.resolve());
+    railProgress.style.height = (100 / scenes.length) + '%';
+    Object.values(journeyVideos).forEach(video => {
+      if (video.src) return;
+      video.src = video.dataset.video;
+      video.preload = 'auto';
+      video.load();
+    });
+    const hashIndex = scenes.findIndex(scene => '#' + scene.id === location.hash);
+    if (hashIndex > 0) commitScene(hashIndex);
+    else {
+      prepareVideo(scenes[0]);
+      playCurrent();
+    }
+    const firstVideo = scenes[active].querySelector('video');
+    if (firstVideo && !reduceMotion.matches) {
+      await Promise.race([
+        firstVideo.play().catch(() => {}),
+        new Promise(resolve => setTimeout(resolve, 1600))
+      ]);
+    }
+    if (window.sitePreloader) window.sitePreloader.reveal();
+    else document.getElementById('site-loader')?.remove();
+    document.body.classList.remove('is-loading');
+  }
+
+  startSite().catch(error => {
+    console.error('Site startup failed:', error);
+    if (window.sitePreloader) window.sitePreloader.reveal();
+    else document.getElementById('site-loader')?.remove();
+    document.body.classList.remove('is-loading');
+  });
 })();
