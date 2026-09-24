@@ -69,7 +69,7 @@ const server = http.createServer(async (request, response) => {
   const headers = {
     'Content-Type': mimeTypes[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
     'Accept-Ranges': 'bytes',
-    'Cache-Control': relativePath === 'index.html' ? 'no-cache' : 'public, max-age=3600',
+    'Cache-Control': /\.(?:html|css|js)$/.test(relativePath) ? 'no-cache' : 'public, max-age=3600',
     'X-Content-Type-Options': 'nosniff'
   };
 

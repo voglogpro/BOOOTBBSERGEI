@@ -72,12 +72,22 @@ h1 em,h2 em{font-family:inherit;font-size:1.01em;font-style:italic;font-weight:4
 }
 @media(max-width:700px){
   .grain{opacity:.34}
-  h1{font-size:clamp(58px,11.8vw,84px);line-height:.91;max-width:100%}
+  /* Keep the fountain and the dipping strawberry inside a portrait crop. */
+  .scene-intro .scene-video{object-position:76% center}
+  .scene-experience .scene-video{object-position:48% center}
+  .scene-details .scene-video{object-position:16% center}
+  .intro-shade{background:linear-gradient(0deg,rgba(18,8,6,.9),rgba(18,8,6,.55) 48%,rgba(18,8,6,.1))}
+  .experience-shade{background:linear-gradient(0deg,rgba(22,10,8,.88),rgba(22,10,8,.38) 62%,rgba(22,10,8,.08))}
+  .details-shade{background:linear-gradient(0deg,rgba(22,10,8,.96),rgba(22,10,8,.54) 57%,rgba(22,10,8,.08))}
+  h1{font-size:clamp(42px,13vw,62px);line-height:.91;max-width:100%}
   h2,.experience-content h2,.details-content h2{font-size:clamp(49px,10.3vw,73px);line-height:.91}
   .intro-content{padding-bottom:120px}
   .lead,.section-lead{font-size:13px;line-height:1.6}
   .details-content{padding-top:115px;padding-bottom:95px}
   .detail-card{backdrop-filter:blur(5px)}
+}
+@media(max-width:700px) and (max-height:650px){
+  .site-footer,.scene-rail{display:none}
 }
 @media(prefers-reduced-motion:reduce){
   .grain{animation:none}
