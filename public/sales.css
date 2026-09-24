@@ -16,7 +16,7 @@
 .header-phone:hover{color:var(--gold)}
 .header-cta{min-width:0;gap:12px}
 .header-cta svg{width:14px;height:14px}
-@media(max-width:1180px){.header-phone{display:none}}
+@media(max-width:1360px){.header-phone{display:none}}
 
 /* Hero */
 .intro-content h1{max-width:980px;font-size:clamp(64px,6.4vw,112px)}
@@ -36,9 +36,10 @@
 /* Experience */
 .experience-content h2{max-width:720px;margin-bottom:22px}
 .experience-content .section-lead{position:static;width:auto;height:auto;overflow:visible;clip-path:none;white-space:normal;max-width:520px;margin-bottom:0;text-shadow:0 1px 16px rgba(22,10,8,.8)}
-.experience-facts{list-style:none;padding:15px 0 0;margin-bottom:0;gap:12px 26px}
-.experience-facts li{display:flex;align-items:center;gap:9px}
-.experience-facts svg{width:18px;height:18px;color:#f0cda6;stroke-width:1.4}
+.experience-facts{list-style:none;padding:18px 0 0;margin-bottom:0;gap:14px 30px;font-size:12px;letter-spacing:.06em}
+.experience-facts li{display:flex;align-items:center;gap:11px}
+.experience-facts b{font-size:15px;font-weight:700;letter-spacing:0;color:#fff4e7}
+.experience-facts svg{width:26px;height:26px;color:#f0cda6;stroke-width:1.3}
 .experience-events{margin:16px 0 0;max-width:560px;font-size:12px;line-height:1.7;color:rgba(255,238,220,.72);text-shadow:0 1px 12px #25110d}
 
 /* Offer scene */
@@ -46,12 +47,14 @@
 .details-price strong{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(44px,3.6vw,58px);font-weight:500;line-height:1;letter-spacing:-.02em;color:#f7dcc2;white-space:nowrap}
 .details-price span{font-size:10px;font-weight:600;line-height:1.6;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,240,224,.74)}
 .details-copy h2{margin-bottom:20px}
-.details-grid{grid-template-columns:repeat(2,minmax(0,1fr));list-style:none;margin:0;padding:0;width:min(640px,100%)}
-.detail-card{min-height:0;padding:15px 16px}
-.detail-icon{width:26px;height:26px;color:#e8c095;stroke-width:1.3}
-.detail-card p{margin:10px 0 4px}
-.detail-card strong{margin-bottom:0}
-.detail-card small{margin-top:5px;font-size:10px}
+/* What we bring: large icon, the amount set big, a plain-language line under it. */
+.details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;list-style:none;margin:0;padding:0;width:min(680px,100%)}
+.detail-card{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:start;min-height:0;padding:18px 18px 17px;background:rgba(28,13,11,.52);border-color:rgba(255,230,213,.34)}
+.detail-card>div{min-width:0}
+.detail-icon{width:44px;height:44px;padding:8px;border:1px solid rgba(232,192,149,.45);border-radius:50%;color:#f0cda6;stroke-width:1.35;background:rgba(232,192,149,.08)}
+.detail-card p{margin:1px 0 5px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#e9c7a3}
+.detail-card strong{display:block;margin-bottom:0;font-size:clamp(21px,1.75vw,28px);font-weight:600;line-height:1.1;letter-spacing:-.02em;color:#fff6ec}
+.detail-card small{display:block;margin-top:6px;font-size:12.5px;line-height:1.45;color:rgba(255,240,226,.82)}
 .details-actions{display:flex;align-items:center;gap:28px;margin-top:22px;flex-wrap:wrap}
 .details-actions .button{min-width:0}
 .details-link{margin-top:0;gap:26px;align-items:center}
@@ -149,8 +152,9 @@ body.is-loading .scene-next{opacity:0}
   .booking-steps li{padding:8px 0}
   .details-price{margin-bottom:14px}
   .details-copy h2{font-size:clamp(46px,4.2vw,72px);margin-bottom:14px}
-  .detail-card{padding:11px 14px}
-  .detail-card p{margin:6px 0 3px}
+  .detail-card{padding:12px 14px}
+  .detail-icon{width:38px;height:38px;padding:7px}
+  .detail-card small{font-size:11.5px}
   .details-actions{margin-top:14px}
   .hero-price{margin-bottom:22px}
 }
@@ -180,20 +184,21 @@ body.is-loading .scene-next{opacity:0}
   .hero-actions .text-button{padding:8px 0}
 
   .experience-content .section-lead{font-size:13px;max-width:100%}
-  .experience-facts{gap:8px 16px;max-width:none}
-  .experience-facts svg{width:15px;height:15px}
+  .experience-facts{gap:9px 16px;max-width:none;font-size:10.5px}
+  .experience-facts b{font-size:13px}
+  .experience-facts svg{width:21px;height:21px}
   .experience-events{font-size:10.5px;margin-top:12px}
 
   .details-copy h2{font-size:clamp(42px,10vw,58px);margin-bottom:14px}
   .details-price{gap:12px;margin-bottom:14px}
   .details-price strong{font-size:38px}
   .details-price span{font-size:8.5px;letter-spacing:.09em}
-  .details-grid{grid-template-columns:1fr 1fr;gap:6px}
-  .detail-card{display:flex;flex-direction:column;padding:10px 11px}
-  .detail-icon{width:21px;height:21px;padding:0}
-  .detail-card p{margin:7px 0 2px;font-size:8px}
-  .detail-card strong{font-size:15px}
-  .detail-card small{font-size:9px;margin-top:3px}
+  .details-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .detail-card{display:flex;flex-direction:column;gap:8px;padding:12px}
+  .detail-icon{width:36px;height:36px;padding:7px}
+  .detail-card p{margin:0 0 3px;font-size:9px;letter-spacing:.1em}
+  .detail-card strong{font-size:18px}
+  .detail-card small{font-size:11px;line-height:1.35;margin-top:4px}
   .details-actions{gap:14px 20px;margin-top:14px}
   .details-actions .button{padding:15px 16px;gap:14px}
 
@@ -246,7 +251,8 @@ body.is-loading .scene-next{opacity:0}
 @media(max-width:700px) and (max-height:700px){
   .intro-content .lead{display:none}
   .experience-events{display:none}
-  .detail-card small,.details-price span br{display:none}
+  .details-price span br{display:none}
+  .detail-card small{font-size:10px}
   .details-copy h2{font-size:40px}
 }
 @media(max-width:700px) and (max-height:650px){
@@ -254,4 +260,55 @@ body.is-loading .scene-next{opacity:0}
 }
 @media(prefers-reduced-motion:reduce){
   .scene-next svg,.button-dark.is-sending svg{animation:none}
+}
+
+/* City choice */
+.city-switch{display:flex;align-items:center;gap:8px;margin-right:22px;padding:9px 12px;border:1px solid rgba(255,238,216,.28);background:rgba(20,9,7,.25);color:#fff2e6;font-family:inherit;font-size:12px;font-weight:600;letter-spacing:.03em;white-space:nowrap;transition:border-color .2s,background .2s}
+.city-switch svg{width:16px;height:16px;color:var(--gold)}
+.city-switch .city-chevron{width:13px;height:13px;color:rgba(255,242,230,.7)}
+.city-switch:hover{border-color:var(--gold);background:rgba(20,9,7,.5)}
+.city-dialog{width:min(620px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;padding:46px clamp(22px,5vw,50px) 40px;border:1px solid rgba(255,240,219,.28);background:#241410 url('assets/fountain-poster-v2.webp') center/cover;color:#fff4e6;box-shadow:0 26px 100px rgba(0,0,0,.6);isolation:isolate}
+.city-dialog::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(26,12,9,.86),rgba(26,12,9,.95))}
+.city-dialog::backdrop{background:rgba(15,6,6,.7);backdrop-filter:blur(6px)}
+.city-dialog.is-required .dialog-close{display:none}
+.city-dialog .eyebrow{margin-bottom:20px}
+.city-dialog h2{font-size:clamp(44px,7vw,66px);margin-bottom:14px}
+.city-lead{margin:0 0 24px;font-size:14px;line-height:1.6;color:rgba(255,240,226,.78)}
+.city-options{display:grid;gap:10px}
+.city-option{display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:14px;width:100%;padding:18px 20px;border:1px solid rgba(255,227,199,.4);background:rgba(20,9,7,.5);color:#fff4e7;font-family:inherit;text-align:left;transition:background .2s,border-color .2s,color .2s}
+.city-option svg{width:24px;height:24px;color:var(--gold)}
+.city-option .city-option-arrow{width:17px;height:17px}
+.city-option span{display:flex;flex-direction:column;gap:5px}
+.city-option b{font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;font-weight:500;line-height:1}
+.city-option small{font-size:12px;color:rgba(255,240,226,.72)}
+.city-option small i{font-style:normal;white-space:nowrap}
+.city-option:hover,.city-option:focus-visible,.city-option[aria-pressed=true]{background:#f4e5d5;border-color:#f4e5d5;color:#27140f}
+.city-option:hover small,.city-option:focus-visible small,.city-option[aria-pressed=true] small{color:#6e5646}
+.city-option:hover svg,.city-option[aria-pressed=true] svg{color:#8e552e}
+
+/* Form: city line and messenger channels */
+.lead-form .form-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.lead-form .form-sub svg{width:14px;height:14px;color:#8e552e}
+.form-city{border:0;background:none;padding:0;color:#8e552e;font-family:inherit;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.contact-form input[type=time]{min-height:39px;color-scheme:light}
+.form-or{display:flex;align-items:center;gap:10px;margin:16px 0 10px;font-size:11px;font-weight:600;color:#6e5646}
+.form-or::before,.form-or::after{content:'';flex:1;height:1px;background:rgba(64,38,25,.22)}
+.form-or span{text-align:center}
+.send-channels{display:flex;gap:8px;flex-wrap:wrap}
+.channel{flex:1 1 120px;display:flex;align-items:center;justify-content:center;gap:9px;height:46px;border:1px solid rgba(64,38,25,.3);background:#fff9f1;color:#2b1710;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.channel svg{width:20px;height:20px}
+.channel-whatsapp svg{color:#1f9d55}
+.channel-vk svg{color:#2a6fdb}
+.channel-telegram svg{color:#229ed9}
+.channel:hover,.channel:focus-visible{background:#2b1710;border-color:#2b1710;color:#f9e9d0}
+.channel:hover svg,.channel:focus-visible svg{color:#f4d7b4}
+.form-status{margin-top:12px;font-size:12px;line-height:1.5;color:#3e2a1f}
+.contact-dialog{max-height:calc(100dvh - 24px)}
+@media(max-width:700px){
+  .city-switch{margin:0 0 0 auto;padding:8px 10px;font-size:11px}
+  .city-switch span{max-width:120px;overflow:hidden;text-overflow:ellipsis}
+  .city-dialog{padding:44px 18px 22px}
+  .city-option{padding:15px 16px;gap:12px}
+  .city-option b{font-size:27px}
+  .channel{height:48px}
 }

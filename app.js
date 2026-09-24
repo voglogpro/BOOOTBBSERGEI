@@ -9,9 +9,17 @@ const dataDir = path.join(__dirname, 'data');
 const port = Number(process.env.PORT) || 3000;
 // Leads go to the owner's Telegram. Keep both values in the hosting environment, never in the repository.
 const botToken = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
-const leadChatIds = String(process.env.TELEGRAM_CHAT_ID || process.env.LEAD_CHAT_ID || '')
-  .split(/[\s,;]+/)
-  .filter(Boolean);
+const parseIds = value => String(value || '').split(/[\s,;]+/).filter(Boolean);
+// The general chat receives every lead; a city chat receives only that city's leads.
+const leadChatIds = parseIds(process.env.TELEGRAM_CHAT_ID || process.env.LEAD_CHAT_ID);
+
+// Each city has its own address for ads: /krasnodar, /rostov.
+const cities = {
+  krasnodar: { name: 'Краснодар', in: 'в Краснодаре', phone: '+79181123433', chatIds: parseIds(process.env.TELEGRAM_CHAT_ID_KRASNODAR) },
+  rostov: { name: 'Ростов-на-Дону', in: 'в Ростове-на-Дону', phone: '+79613237733', chatIds: parseIds(process.env.TELEGRAM_CHAT_ID_ROSTOV) }
+};
+const cityAliases = { 'краснодар': 'krasnodar', krd: 'krasnodar', 'ростов': 'rostov', 'ростов-на-дону': 'rostov', rnd: 'rostov', 'rostov-na-donu': 'rostov' };
+const channelNames = { site: 'заявка на сайте', whatsapp: 'клиент пишет в WhatsApp', vk: 'клиент пишет ВКонтакте', telegram: 'клиент пишет в Telegram' };
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -27,6 +35,65 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp'
 };
+
+const escapeAttr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+function siteUrl(request) {
+  const host = String(request.headers['x-forwarded-host'] || request.headers.host || 'localhost').split(',')[0].trim();
+  const proto = String(request.headers['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https')).split(',')[0].trim();
+  return `${proto}://${host}`;
+}
+
+// The page is one file; the head is filled in for the city so ads and link previews name the right city.
+async function sendPage(request, response, method, cityKey) {
+  const city = cities[cityKey];
+  const base = siteUrl(request);
+  const pageUrl = base + (city ? '/' + cityKey : '/');
+  const business = {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: 'Шоколадный фонтан — выездной шоколадный фуршет' + (city ? ' ' + city.in : ''),
+    description: 'Выездной шоколадный фонтан с мастером и фруктами на свадьбы, дни рождения и корпоративы.',
+    url: pageUrl,
+    image: base + '/assets/og-image.jpg',
+    priceRange: 'от 12 000 ₽',
+    areaServed: city ? city.name : Object.values(cities).map(item => item.name),
+    makesOffer: { '@type': 'Offer', name: 'Пакет «Всё включено»', price: '12000', priceCurrency: 'RUB' }
+  };
+  if (city) {
+    business.telephone = city.phone;
+    business.address = { '@type': 'PostalAddress', addressLocality: city.name, addressCountry: 'RU' };
+  }
+  let html = await fs.promises.readFile(path.join(publicDir, 'index.html'), 'utf8');
+  html = html
+    .replaceAll('%CITY_IN%', city ? city.in : 'в Краснодаре и Ростове-на-Дону')
+    .replaceAll('%PAGE_URL%', escapeAttr(pageUrl))
+    .replaceAll('%SITE_URL%', escapeAttr(base))
+    .replace('%LD_JSON%', JSON.stringify(business).replace(/</g, '\\u003c'))
+    .replace('<html lang="ru">', `<html lang="ru" data-city="${city ? cityKey : ''}">`);
+  const data = Buffer.from(html);
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': data.length,
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff'
+  });
+  response.end(method === 'HEAD' ? undefined : data);
+}
+
+function redirect(response, location) {
+  response.writeHead(301, { Location: location, 'Cache-Control': 'no-cache' });
+  response.end();
+}
+
+function sendSitemap(request, response, method) {
+  const base = siteUrl(request);
+  const urls = ['/', ...Object.keys(cities).map(key => '/' + key)];
+  const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    urls.map(url => `  <url><loc>${escapeAttr(base + url)}</loc></url>`).join('\n') + '\n</urlset>\n';
+  response.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Content-Length': Buffer.byteLength(body) });
+  response.end(method === 'HEAD' ? undefined : body);
+}
 
 function sendText(response, status, body, method) {
   const data = Buffer.from(body);
@@ -87,11 +154,15 @@ const escapeHtml = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').r
 
 function formatLead(lead) {
   const rows = [
+    ['Город', cities[lead.city]?.name],
+    ['Канал', channelNames[lead.channel]],
     ['Имя', lead.name],
     ['Телефон', lead.phone],
-    ['Дата', lead.date || 'уточняется'],
     ['Событие', lead.event || 'уточняется'],
-    ['Гостей', lead.guests || 'уточняется'],
+    ['Дата', lead.date || 'уточняется'],
+    ['Время', lead.time],
+    ['Гостей', lead.guests],
+    ['Место', lead.place],
     ['Комментарий', lead.message],
     ['Telegram', lead.telegram]
   ].filter(([, value]) => value);
@@ -100,9 +171,10 @@ function formatLead(lead) {
 }
 
 async function notifyTelegram(lead) {
-  if (!botToken || !leadChatIds.length) return false;
+  const chatIds = [...new Set([...leadChatIds, ...(cities[lead.city]?.chatIds || [])])];
+  if (!botToken || !chatIds.length) return false;
   const text = formatLead(lead);
-  const results = await Promise.all(leadChatIds.map(async chatId => {
+  const results = await Promise.all(chatIds.map(async chatId => {
     try {
       const reply = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -138,12 +210,18 @@ async function handleLead(request, response) {
     phone: clean(body?.phone, 40),
     date: clean(body?.date, 20),
     event: clean(body?.event, 60),
+    time: clean(body?.time, 10),
     guests: clean(body?.guests, 10),
+    place: clean(body?.place, 120),
+    city: cities[body?.city] ? body.city : '',
+    channel: channelNames[body?.channel] ? body.channel : 'site',
     message: clean(body?.message, 1000),
     telegram: clean(body?.telegram, 64),
     page: clean(body?.page, 200)
   };
-  if (!lead.name || lead.phone.replace(/\D/g, '').length < 10) {
+  // A visitor who writes from a messenger is reachable there, so the phone is optional.
+  const needsPhone = lead.channel === 'site';
+  if (!lead.name || (needsPhone && lead.phone.replace(/\D/g, '').length < 10)) {
     return sendJson(response, 422, { ok: false, error: 'invalid' });
   }
 
@@ -208,6 +286,23 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (pathname === '/health') return sendText(response, 200, 'ok', method);
+  if (pathname === '/sitemap.xml') return sendSitemap(request, response, method);
+  if (pathname === '/robots.txt') {
+    return sendText(response, 200, `User-agent: *\nAllow: /\nSitemap: ${siteUrl(request)}/sitemap.xml\n`, method);
+  }
+  const query = request.url.includes('?') ? request.url.slice(request.url.indexOf('?')) : '';
+  const slug = pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  const page = key => sendPage(request, response, method, key).catch(error => {
+    console.error('Cannot render the page:', error);
+    if (!response.headersSent) sendText(response, 500, 'Internal Server Error', method);
+  });
+  if (pathname === '/' || pathname === '/index.html') return page('');
+  if (cities[slug] || cityAliases[slug]) {
+    const key = cities[slug] ? slug : cityAliases[slug];
+    // One canonical address per city; relative asset paths rely on no trailing slash.
+    if (pathname !== '/' + key) return redirect(response, '/' + key + query);
+    return page(key);
+  }
   if (pathname.includes('\0') || pathname.includes('\\')) {
     return sendText(response, 400, 'Bad Request', method);
   }

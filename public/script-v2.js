@@ -7,6 +7,7 @@
   const railProgress = document.getElementById('rail-progress');
   const dialog = document.getElementById('contact-dialog');
   const offerDialog = document.getElementById('offer-dialog');
+  const cityDialog = document.getElementById('city-dialog');
   const formTemplate = document.getElementById('lead-form-template');
   const nextButton = document.querySelector('.scene-next');
   const nextLabel = document.getElementById('scene-next-label');
@@ -40,29 +41,99 @@
 
   setText('[data-brand]', config.brand);
   setAll('[data-price]', config.price);
-  setAll('[data-region]', config.region);
-  setAll('[data-owner]', config.owner);
-  setAll('[data-owner-dative]', config.ownerDative);
-  setAll('[data-owner-full]', config.ownerFull);
-  setAll('[data-phone-text]', config.phoneText);
   document.getElementById('year').textContent = new Date().getFullYear();
-  const phoneHref = config.phone ? 'tel:' + String(config.phone).replace(/[^\d+]/g, '') : '';
-  if (phoneHref) document.querySelectorAll('[data-phone]').forEach(link => { link.href = phoneHref; });
-  const telegramHref = config.telegram ? 'https://t.me/' + String(config.telegram).replace(/^@/, '') : '';
-  const whatsappHref = config.whatsapp ? 'https://wa.me/' + String(config.whatsapp).replace(/\D/g, '') : '';
-  function showLink(selector, href) {
-    if (!href) return;
-    document.querySelectorAll(selector).forEach(link => { link.href = href; link.hidden = false; });
-  }
-  showLink('[data-telegram]', telegramHref);
-  showLink('[data-whatsapp]', whatsappHref);
-  const messengerHref = telegramHref || whatsappHref;
-  if (messengerHref) {
-    document.querySelectorAll('[data-messenger]').forEach(link => {
-      link.querySelector('use')?.setAttribute('href', telegramHref ? '#i-telegram' : '#i-whatsapp');
-      link.setAttribute('aria-label', telegramHref ? 'Написать в Telegram' : 'Написать в WhatsApp');
+
+  // City: the address (/krasnodar, /rostov) wins, then the visitor's last choice.
+  const cities = config.cities || {};
+  const cityKeys = Object.keys(cities);
+  const storage = {
+    get() { try { return localStorage.getItem('fountain-city'); } catch { return null; } },
+    set(value) { try { localStorage.setItem('fountain-city', value); } catch { /* Private mode. */ } }
+  };
+  const pathCity = document.documentElement.dataset.city || location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  let cityKey = cities[pathCity] ? pathCity : '';
+  let city = {};
+  let phoneHref = '';
+  let whatsappNumber = '';
+  let vkHref = '';
+  let telegramHref = '';
+
+  function showLinks(selector, href) {
+    document.querySelectorAll(selector).forEach(link => {
+      link.hidden = !href;
+      if (href) link.href = href;
     });
-    showLink('[data-messenger]', messengerHref);
+  }
+
+  function applyCity(key, { remember = true, updateUrl = true } = {}) {
+    if (!cities[key]) return;
+    cityKey = key;
+    city = cities[key];
+    document.documentElement.dataset.city = key;
+    setAll('[data-city-name]', city.name);
+    setAll('[data-city-prep]', city.prep);
+    setAll('[data-city-gen]', city.gen);
+    setAll('[data-city-in]', city.in);
+    setAll('[data-owner]', city.owner);
+    setAll('[data-owner-dative]', city.ownerDative);
+    setAll('[data-owner-full]', city.ownerFull);
+    setAll('[data-phone-text]', city.phoneText);
+    phoneHref = city.phone ? 'tel:' + String(city.phone).replace(/[^\d+]/g, '') : '';
+    whatsappNumber = String(city.whatsapp || '').replace(/\D/g, '');
+    vkHref = city.vkChat || city.vk || '';
+    telegramHref = city.telegram ? 'https://t.me/' + String(city.telegram).replace(/^@/, '') : '';
+    document.querySelectorAll('[data-phone]').forEach(link => { if (phoneHref) link.href = phoneHref; });
+    showLinks('[data-whatsapp]', whatsappNumber ? 'https://wa.me/' + whatsappNumber : '');
+    showLinks('[data-vk]', vkHref);
+    showLinks('[data-telegram]', telegramHref);
+    document.querySelectorAll('[data-channel="whatsapp"]').forEach(button => { button.hidden = !whatsappNumber; });
+    document.querySelectorAll('[data-channel="vk"]').forEach(button => { button.hidden = !vkHref; });
+    document.querySelectorAll('[data-channel="telegram"]').forEach(button => { button.hidden = !telegramHref; });
+    document.querySelectorAll('[data-city-option]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.cityOption === key)));
+    document.title = `Шоколадный фонтан на праздник ${city.in} — всё включено за ${config.price || '12 000 ₽'}`;
+    if (remember) storage.set(key);
+    if (updateUrl && location.pathname !== '/' + key) history.replaceState(null, '', '/' + key + location.search + location.hash);
+  }
+
+  const cityOptions = document.querySelector('[data-city-options]');
+  cityKeys.forEach(key => {
+    const item = cities[key];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'city-option';
+    button.dataset.cityOption = key;
+    button.innerHTML = '<svg aria-hidden="true"><use href="#i-route" /></svg><span><b></b><small></small></span><svg class="city-option-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>';
+    button.querySelector('b').textContent = item.name;
+    button.querySelector('small').textContent = `Мастер — ${item.owner}`;
+    const phoneLine = document.createElement('i');
+    phoneLine.textContent = item.phoneText;
+    button.querySelector('small').append(' · ', phoneLine);
+    button.addEventListener('click', () => {
+      applyCity(key);
+      cityDialog.close();
+    });
+    cityOptions?.append(button);
+  });
+
+  function openCityDialog() {
+    // Without a city there are no contacts to show, so the first choice cannot be skipped.
+    cityDialog.classList.toggle('is-required', !cityKey);
+    if (!cityDialog.open) cityDialog.showModal();
+    playCurrent();
+  }
+  cityDialog.addEventListener('cancel', event => { if (!cityKey) event.preventDefault(); });
+  cityDialog.addEventListener('click', event => { if (event.target === cityDialog && cityKey) cityDialog.close(); });
+  cityDialog.addEventListener('close', playCurrent);
+  document.querySelector('[data-close-city]').addEventListener('click', () => { if (cityKey) cityDialog.close(); });
+  document.querySelectorAll('[data-open-city]').forEach(button => button.addEventListener('click', openCityDialog));
+
+  if (!cityKey && cities[storage.get()]) cityKey = storage.get();
+  // Fill the page with the first city until the visitor chooses, so nothing reads empty behind the chooser.
+  if (cityKey) applyCity(cityKey, { remember: Boolean(cities[pathCity]) });
+  else if (cityKeys.length) {
+    applyCity(cityKeys[0], { remember: false, updateUrl: false });
+    cityKey = '';
+    document.querySelectorAll('[data-city-option]').forEach(button => button.setAttribute('aria-pressed', 'false'));
   }
 
   if (config.metrikaId) {
@@ -80,7 +151,7 @@
   }
   document.querySelectorAll('[data-goal]').forEach(link => link.addEventListener('click', () => goal(link.dataset.goal)));
 
-  const modalOpen = () => dialog.open || offerDialog.open;
+  const modalOpen = () => dialog.open || offerDialog.open || cityDialog.open;
 
   function prepareVideo(scene) {
     scene.querySelectorAll('video[data-video]').forEach(video => {
@@ -126,7 +197,7 @@
       dot.setAttribute('aria-current', index === active ? 'step' : 'false');
     });
     navLinks.forEach(link => link.classList.toggle('is-current', Number(link.dataset.go) === active));
-    history.replaceState(null, '', '#' + scenes[active].id);
+    history.replaceState(null, '', location.pathname + location.search + '#' + scenes[active].id);
     prepareVideo(scenes[active]);
     playCurrent();
   }
@@ -393,14 +464,56 @@
   }
 
   function leadMessage(lead) {
-    return [
-      'Здравствуйте! Хочу заказать шоколадный фонтан.',
-      'Имя: ' + lead.name,
-      'Телефон: ' + lead.phone,
-      'Дата: ' + (lead.date || 'уточняется'),
-      'Событие: ' + (lead.event || 'уточняется'),
-      'Гостей: ' + (lead.guests || 'уточняется')
-    ].join('\n');
+    const lines = [
+      `Здравствуйте${city.owner ? ', ' + city.owner : ''}! Хочу заказать шоколадный фонтан.`,
+      '',
+      'Праздник: ' + (lead.event || 'уточню'),
+      'Город: ' + (city.name || 'уточню'),
+      'Дата: ' + (lead.date || 'уточню'),
+      lead.time && 'Время: ' + lead.time,
+      lead.guests && 'Гостей: ' + lead.guests,
+      lead.place && 'Место: ' + lead.place,
+      '',
+      'Меня зовут ' + lead.name + (lead.phone ? ', телефон ' + lead.phone : '') + '.'
+    ];
+    return lines.filter(line => line !== false && line !== undefined && line !== null).join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+
+  function readLead(form, channel) {
+    const data = new FormData(form);
+    return {
+      name: String(data.get('name')).trim(),
+      phone: String(data.get('phone')).trim(),
+      date: data.get('date') ? new Date(data.get('date') + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/\s*г\.$/, '') : '',
+      time: String(data.get('time') || ''),
+      guests: String(data.get('guests') || ''),
+      place: String(data.get('place') || '').trim(),
+      event: String(data.get('event') || ''),
+      company: String(data.get('company') || ''),
+      city: cityKey,
+      channel,
+      telegram: telegramUser?.username ? '@' + telegramUser.username : '',
+      page: location.href
+    };
+  }
+
+  function postLead(lead) {
+    return fetch('/api/lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lead),
+      keepalive: true
+    });
+  }
+
+  // Telegram Mini App blocks window.open; it has its own way to open outside links.
+  function openExternal(url) {
+    const app = window.Telegram?.WebApp;
+    if (app?.initData && app.openLink) {
+      try { app.openLink(url); return; } catch { /* Fall back to the browser. */ }
+    }
+    const opened = window.open(url, '_blank', 'noopener');
+    if (!opened) location.href = url;
   }
 
   const today = new Date();
@@ -421,11 +534,15 @@
       phone.setCustomValidity('');
     });
 
+    function setStatus(html, isError = false) {
+      status.innerHTML = html;
+      status.classList.toggle('is-error', isError);
+    }
+
     function showSuccess(lead, delivered) {
-      const owner = config.owner || 'Мы';
       form.querySelector('.lead-success-text').textContent = delivered
-        ? `Спасибо, ${lead.name}! ${owner} скоро перезвонит на номер ${lead.phone}, чтобы уточнить детали и закрепить дату.`
-        : `Спасибо, ${lead.name}! Заявка сохранена. Чтобы закрепить дату быстрее, позвоните ${config.ownerDative || 'нам'} прямо сейчас.`;
+        ? `Спасибо, ${lead.name}! ${city.owner || 'Мы'} скоро перезвонит на номер ${lead.phone}, чтобы уточнить детали и закрепить дату.`
+        : `Спасибо, ${lead.name}! Заявка сохранена. Чтобы закрепить дату быстрее, позвоните ${city.ownerDative || 'нам'} прямо сейчас.`;
       fields.hidden = true;
       success.hidden = false;
       success.querySelector('a')?.focus?.({ preventScroll: true });
@@ -433,41 +550,31 @@
     }
 
     function showFallback(lead) {
-      const message = leadMessage(lead);
+      const message = encodeURIComponent(leadMessage(lead));
       const links = [];
-      if (telegramHref) links.push(`<a href="${telegramHref}" target="_blank" rel="noopener">Telegram</a>`);
-      if (whatsappHref) links.push(`<a href="${whatsappHref}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener">WhatsApp</a>`);
-      if (phoneHref) links.push(`<a href="${phoneHref}">позвоните ${config.phoneText || ''}</a>`);
-      status.innerHTML = 'Не удалось отправить заявку — проверьте интернет и попробуйте ещё раз' + (links.length ? ' или свяжитесь напрямую: ' + links.join(', ') + '.' : '.');
-      status.classList.add('is-error');
-      navigator.clipboard?.writeText(message).catch(() => {});
+      if (whatsappNumber) links.push(`<a href="https://wa.me/${whatsappNumber}?text=${message}" target="_blank" rel="noopener">WhatsApp</a>`);
+      if (vkHref) links.push(`<a href="${vkHref}" target="_blank" rel="noopener">ВКонтакте</a>`);
+      if (phoneHref) links.push(`<a href="${phoneHref}">позвоните ${city.phoneText || ''}</a>`);
+      setStatus('Не удалось отправить заявку — проверьте интернет и попробуйте ещё раз' + (links.length ? ' или свяжитесь напрямую: ' + links.join(', ') + '.' : '.'), true);
+    }
+
+    function needCity() {
+      if (cityKey) return false;
+      openCityDialog();
+      return true;
     }
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      status.classList.remove('is-error');
-      status.textContent = '';
-      if (phone.value.replace(/\D/g, '').length < 11) phone.setCustomValidity('Укажите номер телефона полностью');
+      setStatus('');
+      if (needCity()) return;
+      phone.setCustomValidity(phone.value.replace(/\D/g, '').length < 11 ? 'Укажите номер телефона, чтобы мы перезвонили' : '');
       if (!form.reportValidity()) return;
-      const data = new FormData(form);
-      const lead = {
-        name: String(data.get('name')).trim(),
-        phone: String(data.get('phone')).trim(),
-        date: data.get('date') ? new Date(data.get('date') + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-        guests: String(data.get('guests') || ''),
-        event: String(data.get('event') || ''),
-        company: String(data.get('company') || ''),
-        telegram: telegramUser?.username ? '@' + telegramUser.username : '',
-        page: location.href
-      };
+      const lead = readLead(form, 'site');
       submit.disabled = true;
       submit.classList.add('is-sending');
       try {
-        const response = await fetch('api/lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(lead)
-        });
+        const response = await postLead(lead);
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.ok) throw new Error('Lead rejected: ' + response.status);
         goal('lead');
@@ -480,6 +587,28 @@
         submit.classList.remove('is-sending');
       }
     });
+
+    // Messenger buttons send the same assembled message straight to the city's master.
+    form.querySelectorAll('[data-channel]').forEach(button => button.addEventListener('click', () => {
+      setStatus('');
+      if (needCity()) return;
+      phone.setCustomValidity('');
+      if (!form.elements.name.reportValidity()) return;
+      const channel = button.dataset.channel;
+      const lead = readLead(form, channel);
+      const message = leadMessage(lead);
+      if (channel === 'whatsapp') {
+        openExternal(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`);
+        setStatus(`Открываем WhatsApp — сообщение для ${city.ownerDative || 'мастера'} уже готово, осталось нажать «Отправить».`);
+      } else {
+        // VK and Telegram links cannot carry text, so the message goes to the clipboard.
+        navigator.clipboard?.writeText(message).catch(() => {});
+        openExternal(channel === 'vk' ? vkHref : telegramHref);
+        setStatus(`Сообщение скопировано. Вставьте его в чат с ${city.ownerInstrumental || 'мастером'} и отправьте.`);
+      }
+      goal(channel);
+      postLead(lead).catch(() => {});
+    }));
   });
 
   async function startSite() {
@@ -503,6 +632,7 @@
     if (window.sitePreloader) window.sitePreloader.reveal();
     else document.getElementById('site-loader')?.remove();
     document.body.classList.remove('is-loading');
+    if (!cityKey && cityKeys.length) setTimeout(openCityDialog, 450);
   }
 
   startSite().catch(error => {
