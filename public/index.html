@@ -1,26 +1,74 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#21120e" />
-    <meta name="description" content="Шоколадный фонтан и фуршет с обслуживанием в Краснодаре. Пятиярусный фонтан, бельгийский шоколад Barry Callebaut, фрукты и выезд по городу — пакет за 12 000 ₽." />
+    <title>Шоколадный фонтан на праздник в Краснодаре — всё включено за 12 000 ₽</title>
+    <meta name="description" content="Выездной шоколадный фонтан с мастером в Краснодаре: 5 ярусов, 3,5 кг бельгийского шоколада Barry Callebaut, 4 кг свежих фруктов, маршмеллоу и обслуживание. Пакет «Всё включено» — 12 000 ₽, выезд по городу бесплатно." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Шоколадный фонтан — звезда вашего праздника" />
+    <meta property="og:description" content="Привезём, установим и обслужим. Бельгийский шоколад, свежие фрукты и мастер у фонтана. Пакет «Всё включено» — 12 000 ₽, Краснодар." />
+    <meta property="og:image" content="https://bot-1790257707-7059-kponamarev.bothost.tech/assets/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
-    <title>Шоколадный фонтан — праздник со вкусом</title>
+    <link rel="preload" as="image" href="storyboard/01-real-fountain-v2.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="premium.css?v=mobile-framing-3" />
-    <link rel="stylesheet" href="offer.css" />
-    <link rel="stylesheet" href="loader.css?v=2" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="premium.css?v=3" />
+    <link rel="stylesheet" href="offer.css?v=3" />
+    <link rel="stylesheet" href="loader.css?v=3" />
+    <link rel="stylesheet" href="sales.css?v=3" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "Шоколадный фонтан — выездной шоколадный фуршет",
+        "description": "Выездной шоколадный фонтан с мастером и фруктами на свадьбы, дни рождения и корпоративы.",
+        "telephone": "+79613237733",
+        "areaServed": "Краснодар",
+        "address": { "@type": "PostalAddress", "addressLocality": "Краснодар", "addressCountry": "RU" },
+        "image": "https://bot-1790257707-7059-kponamarev.bothost.tech/assets/og-image.jpg",
+        "priceRange": "от 12 000 ₽",
+        "makesOffer": {
+          "@type": "Offer",
+          "name": "Пакет «Всё включено»",
+          "price": "12000",
+          "priceCurrency": "RUB"
+        }
+      }
+    </script>
     <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
     <script defer src="telegram-init.js"></script>
-    <script defer src="site-config.js"></script>
-    <script defer src="preloader.js?v=2"></script>
-    <script defer src="script-v2.js?v=preload-2"></script>
+    <script defer src="site-config.js?v=3"></script>
+    <script defer src="preloader.js?v=3"></script>
+    <script defer src="script-v2.js?v=3"></script>
   </head>
   <body class="is-loading">
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-fountain" viewBox="0 0 24 24"><path d="M12 2.5v17M9.5 4.2h5M7.8 8.2c2.3 1.1 6.1 1.1 8.4 0M6 12.6c3.3 1.4 8.7 1.4 12 0M4 17.2c4.4 1.8 11.6 1.8 16 0M8 21.5h8M9.4 4.2 7.8 8.2m6.8-4 1.6 4M7.8 8.2 6 12.6m10.2-4.4 1.8 4.4M6 12.6 4 17.2m14-4.6 2 4.6"/></symbol>
+      <symbol id="i-chocolate" viewBox="0 0 24 24"><rect x="5" y="2.8" width="14" height="18.4" rx="2"/><path d="M5 8.9h14M5 15h14M12 2.8v18.4"/></symbol>
+      <symbol id="i-strawberry" viewBox="0 0 24 24"><path d="M12 7.2c-4.6-.1-7.4 2.7-6.8 6.5.6 3.8 3.9 7.3 6.8 7.8 2.9-.5 6.2-4 6.8-7.8.6-3.8-2.2-6.6-6.8-6.5Z"/><path d="M8.3 7.6 7.2 4.4l3.2 1.6L12 2.8l1.6 3.2 3.2-1.6-1.1 3.2"/><path d="M9.5 11.5h.01M14.5 11.5h.01M12 14.5h.01M9.8 17h.01M14.2 17h.01"/></symbol>
+      <symbol id="i-master" viewBox="0 0 24 24"><path d="M7.5 9.5a4.5 4.5 0 1 1 9 0"/><path d="M6.5 9.5h11M8 9.5v1a4 4 0 0 0 8 0v-1"/><path d="M4.5 21.2c.8-3.6 3.9-5.7 7.5-5.7s6.7 2.1 7.5 5.7"/><path d="m10.4 15.8 1.6 2.4 1.6-2.4"/></symbol>
+      <symbol id="i-route" viewBox="0 0 24 24"><path d="M12 21.2s-6.5-5.9-6.5-11.2a6.5 6.5 0 0 1 13 0c0 5.3-6.5 11.2-6.5 11.2Z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><path d="M20.6 16.4v2.9a1.9 1.9 0 0 1-2.1 1.9 18.8 18.8 0 0 1-8.2-2.9 18.5 18.5 0 0 1-5.7-5.7A18.8 18.8 0 0 1 1.7 4.4 1.9 1.9 0 0 1 3.6 2.3h2.9a1.9 1.9 0 0 1 1.9 1.6c.1.9.4 1.8.7 2.7a1.9 1.9 0 0 1-.4 2L7.5 9.8a15.2 15.2 0 0 0 5.7 5.7l1.2-1.2a1.9 1.9 0 0 1 2-.4c.9.3 1.8.6 2.7.7a1.9 1.9 0 0 1 1.5 1.8Z"/></symbol>
+      <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M21.2 3.6 2.9 10.7c-.9.4-.9 1.6.1 1.9l4.6 1.4 1.8 5.5c.3.8 1.3 1 1.9.4l2.6-2.5 4.6 3.4c.7.5 1.6.1 1.8-.7l3.2-15.2c.2-1-.8-1.8-1.7-1.3Z"/><path d="m7.6 14 10-6.6-7.4 7.6"/></symbol>
+      <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M3.3 20.7 4.6 16A8.9 8.9 0 1 1 8 19.4Z"/><path d="M9 8.3c.2-.5.5-.5.8-.5h.6c.2 0 .4 0 .6.5l.8 1.8c.1.2.1.4 0 .6l-.5.7c-.1.2-.2.4 0 .6a6.6 6.6 0 0 0 2.9 2.6c.2.1.4.1.6-.1l.8-.9c.2-.2.4-.2.6-.1l1.8.8c.3.1.4.3.4.5 0 .8-.6 1.7-1.5 1.9-1 .2-2.8-.2-4.8-1.9-2.4-2-3.1-4-3.1-5 0-.6.3-1.2.9-1.5Z"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v16M6 14l6 6 6-6"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="m8.6 14 -1.6 7.2 5-2.7 5 2.7-1.6-7.2"/><path d="m12 6.2.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3Z"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="4.5" rx="1"/><path d="M5 12.5v8h14v-8M12 8v12.5M12 8S10.9 3.5 8.4 3.5a2.2 2.2 0 0 0 0 4.5M12 8s1.1-4.5 3.6-4.5a2.2 2.2 0 0 1 0 4.5"/></symbol>
+      <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3c.5 4.3 2.7 6.5 7 7-4.3.5-6.5 2.7-7 7-.5-4.3-2.7-6.5-7-7 4.3-.5 6.5-2.7 7-7ZM19 16c.2 1.6 1 2.4 2.5 2.5-1.6.2-2.3 1-2.5 2.5-.2-1.6-1-2.3-2.5-2.5 1.6-.2 2.3-1 2.5-2.5Z"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13.5 15-14-.4 10-6 15-14 15"/><path d="M5 19c3-4 6-6.5 9.5-8.5"/></symbol>
+    </svg>
+
     <div class="site-loader" id="site-loader" aria-label="Загрузка сайта">
       <div class="loader-inner">
         <p class="loader-kicker">Шоколадный фуршет · Краснодар</p>
@@ -39,25 +87,26 @@
           <path class="loader-bowl" d="M23 199q87 36 174 0q-14 27-87 29q-73-2-87-29z" />
           <path class="loader-base" d="M93 231h34l9 9H84z" />
         </svg>
-        <p class="loader-label">Немного предвкушения</p>
+        <p class="loader-label">Растапливаем шоколад</p>
         <h2>Праздник начинается<br /><em>с шоколада.</em></h2>
-        <div class="loader-progress" role="progressbar" aria-label="Загрузка видео и оформления" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="loader-progress-fill"></span></div>
-        <div class="loader-progress-caption"><span id="loader-status" role="status" aria-live="polite">Загружаем видео и оформление</span><strong id="loader-percent">0%</strong></div>
-        <div class="loader-actions"><button type="button" id="loader-skip" hidden>Открыть сейчас</button><button type="button" id="loader-retry" hidden>Повторить загрузку</button></div>
+        <div class="loader-progress" role="progressbar" aria-label="Загрузка сайта" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="loader-progress-fill"></span></div>
       </div>
     </div>
     <div class="grain" aria-hidden="true"></div>
+
     <header class="site-header">
       <a class="brand" href="#intro" data-go="0" aria-label="На первый экран">
-        <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="brand-name" data-brand>Шоколадный фонтан</span>
+        <svg class="brand-mark" aria-hidden="true"><use href="#i-fountain" /></svg>
+        <span class="brand-name"><span data-brand>Шоколадный фонтан</span><small>выездной фуршет · Краснодар</small></span>
       </a>
       <nav class="desktop-nav" aria-label="Разделы сайта">
         <a href="#intro" data-go="0">Главная</a>
-        <a href="#experience" data-go="1">Гости у фонтана</a>
-        <a href="#details" data-go="2">Условия</a>
+        <a href="#experience" data-go="1">Впечатления</a>
+        <a href="#details" data-go="2">Пакет и цена</a>
+        <a href="#booking" data-go="3">Бронь даты</a>
       </nav>
-      <button class="header-cta" type="button" data-open-contact>Обсудить событие <span aria-hidden="true">↗</span></button>
+      <a class="header-phone" data-phone data-goal="phone" href="tel:+79613237733"><svg aria-hidden="true"><use href="#i-phone" /></svg><span data-phone-text>8 961 323-77-33</span></a>
+      <button class="header-cta" type="button" data-open-contact>Забронировать дату <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
     </header>
 
     <main id="site" aria-label="Выездной шоколадный фонтан">
@@ -67,88 +116,189 @@
         </div>
         <div class="scene-shade intro-shade"></div>
         <div class="scene-content intro-content">
-          <p class="eyebrow"><span class="eyebrow-line"></span> Шоколадный фуршет · Краснодар</p>
-          <h1>Шоколадный фонтан.<br /><em>Для вашего праздника.</em></h1>
-          <p class="lead">Пять ярусов бельгийского шоколада Barry Callebaut, свежие фрукты и забота о подаче. Привезём фонтан, оформим стол и обслужим гостей.</p>
+          <p class="eyebrow"><span class="eyebrow-line"></span> Выездной фуршет · Краснодар</p>
+          <h1>Шоколадный фонтан&nbsp;—<br /><em>звезда вашего праздника.</em></h1>
+          <p class="lead">Привезём, установим и обслужим. Бельгийский шоколад Barry Callebaut, свежие фрукты и мастер у фонтана — а вы просто наслаждаетесь праздником вместе с гостями.</p>
+          <div class="hero-price">
+            <strong data-price>12 000 ₽</strong>
+            <span>пакет «Всё включено» <br />выезд по Краснодару — бесплатно</span>
+          </div>
           <div class="hero-actions">
-            <button class="button button-light" type="button" data-open-contact>Обсудить мероприятие <span aria-hidden="true">↗</span></button>
-            <button class="text-button" type="button" data-next>Листайте вниз <span aria-hidden="true">↓</span></button>
+            <button class="button button-light" type="button" data-open-contact>Проверить свободную дату <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
+            <button class="text-button" type="button" data-open-offer>Что входит в пакет <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
           </div>
         </div>
-        <div class="hero-note"><span class="hero-note-icon">✦</span><span>10 лет создаём<br />сладкие моменты</span></div>
+        <ul class="hero-trust" aria-label="Почему нам доверяют">
+          <li><svg aria-hidden="true"><use href="#i-award" /></svg><span><b>10 лет</b>опыта</span></li>
+          <li><svg aria-hidden="true"><use href="#i-chocolate" /></svg><span><b>Barry Callebaut</b>бельгийский шоколад</span></li>
+          <li><svg aria-hidden="true"><use href="#i-master" /></svg><span><b>Мастер</b>на празднике</span></li>
+        </ul>
       </section>
 
-      <section class="scene scene-experience" id="experience" data-index="1" aria-label="Что входит в услугу" aria-hidden="true">
+      <section class="scene scene-experience" id="experience" data-index="1" aria-label="Впечатления" aria-hidden="true">
         <div class="scene-media soft-media">
           <video class="scene-video" data-video="assets/scene-02-original-forward-loop-web.mp4" poster="storyboard/02-hands-strawberry-approved.webp" muted loop playsinline preload="none" aria-hidden="true"></video>
         </div>
         <div class="scene-shade experience-shade"></div>
         <div class="scene-content experience-content">
           <p class="eyebrow"><span class="eyebrow-line"></span> Вкус, ради которого возвращаются</p>
-          <h2>Настоящий шоколад.<br /><em>Красивый момент.</em></h2>
-          <p class="section-lead">Бельгийский шоколад Barry Callebaut, свежие фрукты и маршмеллоу. Мастер обслуживает фонтан и помогает гостям.</p>
-          <div class="experience-facts" aria-label="Качество и обслуживание"><span>Barry Callebaut</span><span>Свежие фрукты</span><span>Мастер у фонтана</span></div>
+          <h2>Гости не отходят<br /><em>от фонтана.</em></h2>
+          <p class="section-lead">Тёплый шоколад струится по пяти ярусам, клубника и ананас ждут на шпажках. Фонтан быстро становится любимым местом гостей: здесь фотографируются, смеются и знакомятся.</p>
+          <ul class="experience-facts" aria-label="Качество и обслуживание">
+            <li><svg aria-hidden="true"><use href="#i-chocolate" /></svg>3,5 кг Barry Callebaut</li>
+            <li><svg aria-hidden="true"><use href="#i-strawberry" /></svg>4 кг свежих фруктов</li>
+            <li><svg aria-hidden="true"><use href="#i-master" /></svg>Мастер у фонтана</li>
+          </ul>
+          <p class="experience-events">Свадьбы · дни рождения · корпоративы · детские праздники · выпускные · гендер-пати · предложения руки и сердца</p>
         </div>
       </section>
 
-      <section class="scene scene-details" id="details" data-index="2" aria-label="Стоимость и условия" aria-hidden="true">
+      <section class="scene scene-details" id="details" data-index="2" aria-label="Пакет и цена" aria-hidden="true">
         <div class="scene-media detail-media">
           <video class="scene-video" data-video="assets/scene-03-loop-web.mp4" poster="storyboard/03-fountain-left-approved.webp" muted loop playsinline preload="none" aria-hidden="true"></video>
         </div>
         <div class="scene-shade details-shade"></div>
         <div class="scene-content details-content">
           <div class="details-copy">
-            <p class="eyebrow"><span class="eyebrow-line"></span> Готовое предложение</p>
-            <h2>Всё включено.<br /><em>Всё для вашего вечера.</em></h2>
-            <p class="section-lead">Пятиярусный фонтан высотой 80 см, бельгийский шоколад, фруктовое ассорти и обслуживание на мероприятии.</p>
+            <p class="eyebrow"><span class="eyebrow-line"></span> Пакет «Всё включено»</p>
+            <h2>Одна цена.<br /><em>Никаких хлопот.</em></h2>
+            <div class="details-price"><strong data-price>12 000 ₽</strong><span>фиксированная стоимость пакета <br />без скрытых доплат по Краснодару</span></div>
           </div>
-          <div class="details-grid">
-            <article class="detail-card"><span class="detail-icon">◌</span><p>Стоимость пакета</p><strong data-price>12 000 ₽</strong><small>Фонтан · 5 ярусов · 80 см</small></article>
-            <article class="detail-card"><span class="detail-icon">✦</span><p>Всё включено</p><strong>3,5 кг + 4 кг</strong><small>Шоколад и фрукты; маршмеллоу и обслуживание</small></article>
-            <article class="detail-card"><span class="detail-icon">⌁</span><p>Выезд</p><strong data-region>Краснодар</strong><small>По городу бесплатно; дальше — по согласованию</small></article>
+          <ul class="details-grid">
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-fountain" /></svg><p>Фонтан</p><strong>5 ярусов, 80 см</strong><small>Эффектный центр любого стола</small></li>
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-chocolate" /></svg><p>Шоколад</p><strong>3,5 кг</strong><small>Бельгийский Barry Callebaut</small></li>
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-strawberry" /></svg><p>Фрукты</p><strong>4 кг</strong><small>Свежие фрукты и маршмеллоу на шпажках</small></li>
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-route" /></svg><p>Мастер и выезд</p><strong data-region>Краснодар</strong><small>Обслуживание на празднике, выезд по городу — 0 ₽</small></li>
+          </ul>
+          <div class="details-actions">
+            <button class="button button-light" type="button" data-open-contact>Забронировать за минуту <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
+            <button class="details-link" type="button" data-open-offer>Подробнее и дополнения <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
           </div>
-          <div class="social-proof"><span class="proof-number">10 лет</span><span>работы с шоколадными фонтанами<br /><small>Только свежие и безопасные продукты</small></span></div>
-          <button class="details-link" type="button" data-open-offer>Что входит в предложение <span aria-hidden="true">↗</span></button>
+        </div>
+      </section>
+
+      <section class="scene scene-booking" id="booking" data-index="3" aria-label="Бронь даты" aria-hidden="true">
+        <div class="scene-media booking-media"></div>
+        <div class="scene-shade booking-shade"></div>
+        <div class="scene-content booking-content">
+          <div class="booking-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> Бронирование даты</p>
+            <h2>Забронируйте<br /><em>вашу дату.</em></h2>
+            <p class="section-lead">Выходные, выпускные и декабрьские даты разбирают заранее. Оставьте заявку — <span data-owner>Анастасия</span> свяжется с вами, уточнит детали и закрепит дату за вами.</p>
+            <ol class="booking-steps">
+              <li><span>01</span><div><b>Заявка за минуту</b>Имя, телефон и дата — этого достаточно</div></li>
+              <li><span>02</span><div><b>Согласуем детали</b>Адрес, время, количество гостей и дополнения</div></li>
+              <li><span>03</span><div><b>Праздник со вкусом</b>Привозим фонтан, запускаем и обслуживаем гостей</div></li>
+            </ol>
+            <div class="booking-direct">
+              <a class="direct-link" data-phone data-goal="phone" href="tel:+79613237733"><svg aria-hidden="true"><use href="#i-phone" /></svg><span><small>Позвонить</small><b data-phone-text>8 961 323-77-33</b></span></a>
+              <a class="direct-link" data-telegram data-goal="telegram" href="#" target="_blank" rel="noopener" hidden><svg aria-hidden="true"><use href="#i-telegram" /></svg><span><small>Написать</small><b>Telegram</b></span></a>
+              <a class="direct-link" data-whatsapp data-goal="whatsapp" href="#" target="_blank" rel="noopener" hidden><svg aria-hidden="true"><use href="#i-whatsapp" /></svg><span><small>Написать</small><b>WhatsApp</b></span></a>
+            </div>
+          </div>
+          <div class="booking-form" data-lead-form-slot></div>
         </div>
       </section>
       <video class="journey-video" id="journey-video" data-video="assets/transition-01-02-full-4s-web.mp4" muted playsinline preload="none" aria-hidden="true"></video>
       <video class="journey-video" id="journey-video-23" data-video="assets/transition-02-03-full-4s-web.mp4" muted playsinline preload="none" aria-hidden="true"></video>
     </main>
 
-    <dialog class="contact-dialog" id="contact-dialog" aria-label="Обсудить мероприятие">
+    <dialog class="contact-dialog" id="contact-dialog" aria-labelledby="contact-dialog-title">
       <button class="dialog-close" type="button" data-close-contact aria-label="Закрыть">×</button>
-      <div class="dialog-intro"><p class="eyebrow">Ваш праздник начинается здесь</p><h2>Обсудим<br /><em>ваше событие.</em></h2><p>Свяжитесь напрямую с Анастасией, чтобы согласовать дату, адрес и детали сервировки.</p><a class="contact-call" data-phone href="tel:+79613237733" aria-label="Позвонить Анастасии по номеру 8 961 323-77-33"><span>Позвонить Анастасии</span><strong>8 961 323-77-33</strong></a><p class="contact-owner">Остапенко Анастасия Олеговна</p></div>
-      <form class="contact-form" id="lead-form">
-            <p class="form-title">Расскажите о событии <span aria-hidden="true">✳</span></p>
-            <label>Как вас зовут<input name="name" type="text" autocomplete="name" placeholder="Ваше имя" required /></label>
-            <label>Как с вами связаться<input name="contact" type="text" autocomplete="tel" placeholder="Телефон или мессенджер" required /></label>
-            <div class="form-row">
-              <label>Дата<input name="date" type="date" /></label>
-              <label>Гостей<input name="guests" type="number" min="1" max="10000" placeholder="Количество" /></label>
-            </div>
-            <label>Что планируете?<textarea name="message" rows="2" placeholder="Свадьба, день рождения, корпоратив..."></textarea></label>
-            <button class="button button-dark" type="submit" id="submit-button">Скопировать заявку <span aria-hidden="true">↗</span></button>
-            <p class="form-status" id="form-status" role="status">Скопируйте сведения о событии и сообщите их Анастасии по телефону.</p>
-          </form>
+      <div class="dialog-intro">
+        <p class="eyebrow">Ваш праздник начинается здесь</p>
+        <h2 id="contact-dialog-title">Проверим<br /><em>вашу дату.</em></h2>
+        <p>Оставьте имя и телефон — <span data-owner>Анастасия</span> перезвонит, ответит на вопросы и закрепит дату. Это бесплатно и ни к чему не обязывает.</p>
+        <ul class="dialog-perks">
+          <li><svg aria-hidden="true"><use href="#i-check" /></svg><span>Пакет «Всё включено» — <span data-price>12 000 ₽</span></span></li>
+          <li><svg aria-hidden="true"><use href="#i-check" /></svg>Выезд по Краснодару бесплатно</li>
+          <li><svg aria-hidden="true"><use href="#i-check" /></svg>10 лет опыта с шоколадными фонтанами</li>
+        </ul>
+        <a class="contact-call" data-phone data-goal="phone" href="tel:+79613237733"><span>Или позвоните <span data-owner-dative>Анастасии</span></span><strong data-phone-text>8 961 323-77-33</strong></a>
+        <p class="contact-owner" data-owner-full>Остапенко Анастасия Олеговна</p>
+      </div>
+      <div data-lead-form-slot></div>
     </dialog>
 
-    <dialog class="offer-dialog" id="offer-dialog" aria-label="Предложение по шоколадному фонтану">
+    <dialog class="offer-dialog" id="offer-dialog" aria-labelledby="offer-dialog-title">
       <button class="dialog-close" type="button" data-close-offer aria-label="Закрыть">×</button>
-      <div class="offer-photo"><img src="assets/real-event-fountain.jpg" alt="Реальный шоколадный фонтан и фруктовая сервировка на мероприятии" loading="lazy" /><span>Фото нашего фонтана на мероприятии</span></div>
+      <div class="offer-photo"><img src="assets/real-event-fountain.jpg" alt="Наш шоколадный фонтан и фруктовая сервировка на мероприятии" loading="lazy" /><span>Фото с нашего мероприятия</span></div>
       <div class="offer-body">
         <p class="eyebrow">Пятиярусный фонтан · Краснодар</p>
-        <h2>Праздник с<br /><em>настоящим вкусом.</em></h2>
-        <p class="offer-intro">10 лет я создаю шоколадные фуршеты для событий, которые хочется запомнить. Работаю с бельгийским шоколадом Barry Callebaut и свежими продуктами.</p>
-        <div class="offer-price"><span>Пакет «Всё включено»</span><strong>12 000 ₽</strong></div>
-        <div class="offer-section"><h3>В стоимость входит</h3><ul><li>Фонтан 5 ярусов, высота 80 см</li><li>3,5 кг бельгийского шоколада Barry Callebaut</li><li>4 кг свежих фруктов</li><li>Маршмеллоу на шпажках</li><li>Обслуживание фонтана на мероприятии</li><li>Бесплатный выезд по Краснодару</li></ul><p>Выезд за пределы Краснодара согласуется отдельно.</p></div>
-        <div class="offer-section"><h3>Для ваших событий</h3><p>Свадьбы, корпоративы, гендер-пати, 8 Марта, детские праздники, юбилеи, тематические вечеринки, девичники, предложения руки и сердца, выпускные и фуршеты.</p></div>
-        <div class="offer-section"><h3>Можно дополнить</h3><p>Профитролями с кремом, фруктовыми композициями, десертами, мармеладом, маршмеллоу и мороженым. К мороженому — кокосовая, маковая и ореховая посыпки.</p></div>
-        <a class="offer-call" data-phone href="tel:+79613237733">Обсудить дату с Анастасией <span aria-hidden="true">↗</span></a>
+        <h2 id="offer-dialog-title">Праздник с<br /><em>настоящим вкусом.</em></h2>
+        <p class="offer-intro">10 лет я создаю шоколадные фуршеты для событий, которые хочется запомнить. Работаю только с бельгийским шоколадом Barry Callebaut и свежими продуктами — за вкус отвечаю лично.</p>
+        <div class="offer-price"><span>Пакет «Всё включено»</span><strong data-price>12 000 ₽</strong></div>
+        <div class="offer-section">
+          <h3>В стоимость входит</h3>
+          <ul class="offer-list">
+            <li><svg aria-hidden="true"><use href="#i-fountain" /></svg>Фонтан 5 ярусов, высота 80 см</li>
+            <li><svg aria-hidden="true"><use href="#i-chocolate" /></svg>3,5 кг бельгийского шоколада Barry Callebaut</li>
+            <li><svg aria-hidden="true"><use href="#i-strawberry" /></svg>4 кг свежих фруктов</li>
+            <li><svg aria-hidden="true"><use href="#i-sparkle" /></svg>Маршмеллоу на шпажках</li>
+            <li><svg aria-hidden="true"><use href="#i-master" /></svg>Обслуживание фонтана на мероприятии</li>
+            <li><svg aria-hidden="true"><use href="#i-route" /></svg>Бесплатный выезд по Краснодару</li>
+          </ul>
+          <p>Выезд за пределы Краснодара согласуется отдельно.</p>
+        </div>
+        <div class="offer-section">
+          <h3>Для ваших событий</h3>
+          <ul class="offer-tags">
+            <li>Свадьбы</li><li>Дни рождения</li><li>Корпоративы</li><li>Детские праздники</li><li>Юбилеи</li><li>Выпускные</li><li>Гендер-пати</li><li>Девичники</li><li>8 Марта</li><li>Предложение руки и сердца</li><li>Тематические вечеринки</li><li>Фуршеты</li>
+          </ul>
+        </div>
+        <div class="offer-section">
+          <h3><svg aria-hidden="true"><use href="#i-gift" /></svg>Можно дополнить</h3>
+          <p>Профитроли с кремом, фруктовые композиции, десерты, мармелад, маршмеллоу и мороженое с кокосовой, маковой и ореховой посыпкой. Стоимость дополнений рассчитаем под ваш праздник.</p>
+        </div>
+        <div class="offer-actions">
+          <button class="offer-call" type="button" data-open-contact>Забронировать дату <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
+          <a class="offer-phone" data-phone data-goal="phone" href="tel:+79613237733"><svg aria-hidden="true"><use href="#i-phone" /></svg><span data-phone-text>8 961 323-77-33</span></a>
+        </div>
       </div>
     </dialog>
 
+    <nav class="mobile-bar" aria-label="Быстрая связь">
+      <a class="mobile-bar-call" data-phone data-goal="phone" href="tel:+79613237733" aria-label="Позвонить"><svg aria-hidden="true"><use href="#i-phone" /></svg><span>Позвонить</span></a>
+      <a class="mobile-bar-chat" data-messenger data-goal="messenger" href="#" target="_blank" rel="noopener" hidden aria-label="Написать"><svg aria-hidden="true"><use href="#i-telegram" /></svg></a>
+      <button class="mobile-bar-book" type="button" data-open-contact><svg aria-hidden="true"><use href="#i-calendar" /></svg>Забронировать дату</button>
+    </nav>
+
+    <button class="scene-next" type="button" data-next><span>Далее</span><b id="scene-next-label">Впечатления</b><svg aria-hidden="true"><use href="#i-down" /></svg></button>
     <div class="site-footer"><span>Краснодар · шоколадный фуршет</span><span>© <span id="year"></span></span></div>
-    <div class="scene-rail" aria-label="Навигация по экранам"><span class="rail-current" id="current-index">01</span><span class="rail-line"><span id="rail-progress"></span></span><span>03</span></div>
-    <div class="scene-dots" aria-label="Выбор экрана"><button type="button" data-go="0" class="is-current" aria-label="Главная"></button><button type="button" data-go="1" aria-label="Гости у фонтана"></button><button type="button" data-go="2" aria-label="Условия"></button></div>
+    <div class="scene-rail" aria-hidden="true"><span class="rail-current" id="current-index">01</span><span class="rail-line"><span id="rail-progress"></span></span><span id="rail-total">04</span></div>
+    <div class="scene-dots" aria-label="Выбор экрана"><button type="button" data-go="0" class="is-current" aria-label="Главная"></button><button type="button" data-go="1" aria-label="Впечатления"></button><button type="button" data-go="2" aria-label="Пакет и цена"></button><button type="button" data-go="3" aria-label="Бронь даты"></button></div>
+
+    <template id="lead-form-template">
+      <form class="contact-form lead-form" novalidate>
+        <div class="lead-fields">
+          <p class="form-title">Свободна ли ваша дата?</p>
+          <p class="form-sub">Ответим и забронируем. Бесплатно и без обязательств.</p>
+          <label>Как вас зовут<input name="name" type="text" autocomplete="name" placeholder="Ваше имя" maxlength="80" required /></label>
+          <label>Телефон<input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 (___) ___-__-__" maxlength="24" required /></label>
+          <div class="form-row">
+            <label>Дата праздника<input name="date" type="date" /></label>
+            <label>Гостей<input name="guests" type="number" inputmode="numeric" min="1" max="10000" placeholder="Примерно" /></label>
+          </div>
+          <fieldset class="event-chips">
+            <legend>Какой праздник?</legend>
+            <label><input type="radio" name="event" value="Свадьба" /><span>Свадьба</span></label>
+            <label><input type="radio" name="event" value="День рождения" /><span>День рождения</span></label>
+            <label><input type="radio" name="event" value="Корпоратив" /><span>Корпоратив</span></label>
+            <label><input type="radio" name="event" value="Детский праздник" /><span>Детский</span></label>
+            <label><input type="radio" name="event" value="Другое" /><span>Другое</span></label>
+          </fieldset>
+          <label class="honeypot" aria-hidden="true">Компания<input name="company" type="text" tabindex="-1" autocomplete="off" /></label>
+          <button class="button button-dark" type="submit">Отправить заявку <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+          <p class="form-consent">Нажимая кнопку, вы соглашаетесь на обработку персональных данных для связи с вами.</p>
+        </div>
+        <div class="lead-success" hidden>
+          <span class="lead-success-icon"><svg aria-hidden="true"><use href="#i-check" /></svg></span>
+          <p class="form-title">Заявка отправлена!</p>
+          <p class="lead-success-text"></p>
+          <a class="button button-dark" data-phone data-goal="phone" href="tel:+79613237733">Позвонить сейчас <svg aria-hidden="true"><use href="#i-phone" /></svg></a>
+        </div>
+      </form>
+    </template>
   </body>
 </html>

@@ -1,175 +1,177 @@
 (() => {
-  const assets = [
-    { path: 'assets/scene-01-locked-loop-web.mp4', kind: 'video', size: 6314401 },
-    { path: 'assets/scene-02-original-forward-loop-web.mp4', kind: 'video', size: 3926004 },
-    { path: 'assets/scene-03-loop-web.mp4', kind: 'video', size: 1356294 },
-    { path: 'assets/transition-01-02-full-4s-web.mp4', kind: 'video', size: 2665735 },
-    { path: 'assets/transition-02-03-full-4s-web.mp4', kind: 'video', size: 2264628 },
-    { path: 'storyboard/01-real-fountain-v2.webp', kind: 'image', size: 234810 },
-    { path: 'storyboard/02-hands-strawberry-approved.webp', kind: 'image', size: 194134 },
-    { path: 'storyboard/03-fountain-left-approved.webp', kind: 'image', size: 239106 },
-    { path: 'assets/fountain-poster-v2.webp', kind: 'image', size: 189846 },
-    { path: 'assets/real-event-fountain.jpg', kind: 'image', size: 187622 }
+  // The first screen opens as soon as its poster, fonts and hero video are ready
+  // (or after a short cap). Everything else downloads in the background, in the
+  // order a visitor needs it, and plays from memory once it arrives.
+  const heroPoster = 'storyboard/01-real-fountain-v2.webp';
+  const heroVideo = 'assets/scene-01-locked-loop-web.mp4';
+  const backgroundVideos = [
+    'assets/transition-01-02-full-4s-web.mp4',
+    'assets/scene-02-original-forward-loop-web.mp4',
+    'assets/transition-02-03-full-4s-web.mp4',
+    'assets/scene-03-loop-web.mp4'
   ];
+  const backgroundImages = [
+    'storyboard/02-hands-strawberry-approved.webp',
+    'storyboard/03-fountain-left-approved.webp',
+    'assets/fountain-poster-v2.webp',
+    'assets/real-event-fountain.jpg'
+  ];
+  const minimumShow = 650;
+  const heroVideoWait = 2600;
+  const hardCap = 4200;
+
   const loader = document.getElementById('site-loader');
-  const status = document.getElementById('loader-status');
-  const percent = document.getElementById('loader-percent');
   const bar = document.querySelector('.loader-progress');
   const fill = document.getElementById('loader-progress-fill');
-  const skip = document.getElementById('loader-skip');
-  const retry = document.getElementById('loader-retry');
+  const main = document.querySelector('main');
   const controller = new AbortController();
-  const sizes = new Map(assets.map(asset => [asset.path, asset.size]));
-  const loaded = new Map(assets.map(asset => [asset.path, 0]));
   const objectUrls = [];
-  let state = 'loading';
+  const readyVideos = new Set();
+  const startedAt = performance.now();
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const saveData = Boolean(navigator.connection?.saveData);
   let resolveReady;
   const ready = new Promise(resolve => { resolveReady = resolve; });
-  const main = document.querySelector('main');
+  let steps = 0;
+  let progressTimer;
   main?.setAttribute('aria-busy', 'true');
 
-  function updateProgress(complete = false) {
-    const total = [...sizes.values()].reduce((sum, size) => sum + size, 0);
-    const done = [...loaded.values()].reduce((sum, size) => sum + size, 0);
-    const value = complete ? 100 : Math.min(99, Math.floor(done / total * 100));
-    fill.style.width = `${value}%`;
-    percent.textContent = `${value}%`;
-    bar.setAttribute('aria-valuenow', String(value));
+  const videoFor = path => [...document.querySelectorAll('video[data-video]')].find(node => node.dataset.video === path);
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function setProgress(value) {
+    const rounded = Math.round(Math.min(100, value));
+    if (fill) fill.style.width = `${rounded}%`;
+    bar?.setAttribute('aria-valuenow', String(rounded));
+  }
+  function stepDone() {
+    steps += 1;
+  }
+  function tickProgress() {
+    const elapsed = performance.now() - startedAt;
+    setProgress(Math.max(steps / 3 * 100, Math.min(90, elapsed / heroVideoWait * 90)));
   }
 
-  function setLoaded(path, bytes) {
-    loaded.set(path, Math.min(bytes, sizes.get(path)));
-    updateProgress();
+  function markReady(video, path) {
+    readyVideos.add(path);
+    video.classList.add('is-ready');
+    video.dataset.ready = 'true';
   }
 
-  function attachVideo(path, source) {
-    const video = [...document.querySelectorAll('video[data-video]')].find(node => node.dataset.video === path);
-    if (!video) throw new Error(`Video element missing: ${path}`);
-    if (video.classList.contains('scene-video')) {
-      video.addEventListener('loadeddata', () => video.classList.add('is-ready'), { once: true });
-    }
-    return new Promise((resolve, reject) => {
-      let finished = false;
-      const done = error => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        video.removeEventListener('loadeddata', onReady);
-        video.removeEventListener('error', onError);
-        if (error) reject(error);
-        else resolve();
-      };
-      const onReady = () => done();
-      const onError = () => done(new Error(`Video cannot be decoded: ${path}`));
-      const timer = setTimeout(() => done(), 6000);
-      video.addEventListener('loadeddata', onReady, { once: true });
-      video.addEventListener('error', onError, { once: true });
-      video.preload = 'auto';
-      video.src = source;
-      video.dataset.loaded = 'true';
-      video.load();
-    });
-  }
-
-  async function downloadVideo(asset) {
-    const response = await fetch(asset.path, { signal: controller.signal });
-    if (!response.ok) throw new Error(`Video download failed: ${asset.path}`);
-    const responseSize = Number(response.headers.get('Content-Length'));
-    if (responseSize > 0) sizes.set(asset.path, responseSize);
-    let blob;
-    if (response.body?.getReader) {
-      const reader = response.body.getReader();
-      const chunks = [];
-      let received = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.byteLength;
-        setLoaded(asset.path, received);
-      }
-      blob = new Blob(chunks, { type: 'video/mp4' });
-    } else {
-      blob = await response.blob();
-    }
-    if (!blob.size) throw new Error(`Empty video: ${asset.path}`);
-    const objectUrl = URL.createObjectURL(blob);
-    objectUrls.push(objectUrl);
-    await attachVideo(asset.path, objectUrl);
-    setLoaded(asset.path, sizes.get(asset.path));
-  }
-
-  function loadImage(asset) {
-    return new Promise((resolve, reject) => {
+  function loadImage(path) {
+    return new Promise(resolve => {
       const image = new Image();
       image.onload = async () => {
-        try { await image.decode?.(); } catch { /* The loaded image is still usable. */ }
-        setLoaded(asset.path, sizes.get(asset.path));
-        resolve();
+        try { await image.decode?.(); } catch { /* A loaded image is still usable. */ }
+        resolve(true);
       };
-      image.onerror = () => reject(new Error(`Image download failed: ${asset.path}`));
-      image.src = asset.path;
+      image.onerror = () => resolve(false);
+      image.src = path;
     });
   }
 
-  function loadWithoutWaiting() {
-    if (state !== 'loading' && state !== 'error') return;
-    state = 'skipped';
-    controller.abort();
-    for (const asset of assets.filter(item => item.kind === 'video')) {
-      const video = [...document.querySelectorAll('video[data-video]')].find(node => node.dataset.video === asset.path);
-      if (video?.dataset.loaded) continue;
-      video.addEventListener('loadeddata', () => video.classList.add('is-ready'), { once: true });
+  // The hero streams straight from the server so it can start before it has fully arrived.
+  function startHeroVideo() {
+    const video = videoFor(heroVideo);
+    if (!video || reduceMotion) return Promise.resolve(false);
+    return new Promise(resolve => {
+      const done = ok => {
+        video.removeEventListener('canplay', onReady);
+        video.removeEventListener('error', onError);
+        resolve(ok);
+      };
+      const onReady = () => { markReady(video, heroVideo); done(true); };
+      const onError = () => done(false);
+      video.addEventListener('canplay', onReady, { once: true });
+      video.addEventListener('error', onError, { once: true });
       video.preload = 'auto';
-      video.src = asset.path;
+      video.src = heroVideo;
       video.dataset.loaded = 'true';
       video.load();
-    }
-    status.textContent = 'Открываем сайт';
-    resolveReady({ complete: false });
+    });
   }
 
-  skip.addEventListener('click', loadWithoutWaiting);
-  retry.addEventListener('click', () => location.reload());
-  const slowTimer = setTimeout(() => { if (state === 'loading') skip.hidden = false; }, 12000);
+  async function downloadVideo(path) {
+    const video = videoFor(path);
+    // The visitor already reached this scene and it is streaming; keep that stream.
+    if (!video || video.dataset.loaded) return;
+    const response = await fetch(path, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Video download failed: ${path}`);
+    const blob = await response.blob();
+    if (!blob.size) throw new Error(`Empty video: ${path}`);
+    if (video.dataset.loaded) return;
+    const objectUrl = URL.createObjectURL(blob);
+    objectUrls.push(objectUrl);
+    await new Promise(resolve => {
+      const timer = setTimeout(resolve, 6000);
+      video.addEventListener('loadeddata', () => {
+        clearTimeout(timer);
+        markReady(video, path);
+        resolve();
+      }, { once: true });
+      video.addEventListener('error', () => { clearTimeout(timer); resolve(); }, { once: true });
+      video.preload = 'auto';
+      video.src = objectUrl;
+      video.dataset.loaded = 'true';
+      video.load();
+    });
+  }
+
+  // Let the hero finish buffering before other clips compete for the connection.
+  function heroSettled() {
+    const video = videoFor(heroVideo);
+    if (!video || video.readyState >= 4 || video.error) return Promise.resolve();
+    return Promise.race([
+      new Promise(resolve => video.addEventListener('canplaythrough', resolve, { once: true })),
+      wait(5000)
+    ]);
+  }
+
+  async function loadBackground() {
+    backgroundImages.forEach(loadImage);
+    if (reduceMotion || saveData) return;
+    await heroSettled();
+    for (const path of backgroundVideos) {
+      try {
+        await downloadVideo(path);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.warn(error.message);
+      }
+    }
+  }
 
   window.sitePreloader = {
     ready,
-    get state() { return state; },
-    get progress() { return Number(bar.getAttribute('aria-valuenow')); },
+    isVideoReady: path => readyVideos.has(path),
     reveal() {
-      clearTimeout(slowTimer);
+      clearInterval(progressTimer);
+      setProgress(100);
       main?.setAttribute('aria-busy', 'false');
       document.body.classList.remove('is-loading');
-      loader.classList.add('is-complete');
-      setTimeout(() => loader.remove(), 700);
+      loader?.classList.add('is-complete');
+      setTimeout(() => loader?.remove(), 700);
+      loadBackground();
     }
   };
 
   async function start() {
-    await Promise.all(assets.map(asset => asset.kind === 'video' ? downloadVideo(asset) : loadImage(asset)));
-    status.textContent = 'Готовим первый кадр';
-    if (document.fonts?.ready) {
-      await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 6000))]);
-    }
-    if (state !== 'loading') return;
-    state = 'complete';
-    status.textContent = 'Всё готово';
-    updateProgress(true);
-    clearTimeout(slowTimer);
-    resolveReady({ complete: true });
+    progressTimer = setInterval(tickProgress, 80);
+    const fontsReady = document.fonts?.ready
+      ? Promise.race([document.fonts.ready, wait(2500)])
+      : Promise.resolve();
+    const critical = Promise.all([
+      loadImage(heroPoster).then(stepDone),
+      fontsReady.then(stepDone),
+      Promise.race([startHeroVideo(), wait(heroVideoWait)]).then(stepDone)
+    ]);
+    await Promise.race([critical, wait(hardCap)]);
+    const shown = performance.now() - startedAt;
+    if (shown < minimumShow) await wait(minimumShow - shown);
+    resolveReady();
   }
 
-  start().catch(error => {
-    if (state !== 'loading') return;
-    state = 'error';
-    controller.abort();
-    clearTimeout(slowTimer);
-    status.textContent = 'Не удалось загрузить все материалы';
-    skip.hidden = false;
-    retry.hidden = false;
-    console.error('Site preload failed:', error);
-  });
+  start();
 
   addEventListener('pagehide', () => {
     controller.abort();

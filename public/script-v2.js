@@ -7,9 +7,10 @@
   const railProgress = document.getElementById('rail-progress');
   const dialog = document.getElementById('contact-dialog');
   const offerDialog = document.getElementById('offer-dialog');
-  const form = document.getElementById('lead-form');
-  const status = document.getElementById('form-status');
-  const submitButton = document.getElementById('submit-button');
+  const formTemplate = document.getElementById('lead-form-template');
+  const nextButton = document.querySelector('.scene-next');
+  const nextLabel = document.getElementById('scene-next-label');
+  const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
   const journeyVideos = {
     1: document.getElementById('journey-video'),
     2: document.getElementById('journey-video-23')
@@ -30,22 +31,66 @@
     if (node && value) node.textContent = value;
   }
 
+  function setAll(selector, value) {
+    if (value) document.querySelectorAll(selector).forEach(node => { node.textContent = value; });
+  }
+
+  // Each form slot gets its own copy of the lead form before config values are applied.
+  document.querySelectorAll('[data-lead-form-slot]').forEach(slot => slot.append(formTemplate.content.cloneNode(true)));
+
   setText('[data-brand]', config.brand);
-  setText('[data-price]', config.price);
-  setText('[data-region]', config.region);
-  document.title = (config.brand || 'Шоколадный фонтан') + ' — праздник со вкусом';
+  setAll('[data-price]', config.price);
+  setAll('[data-region]', config.region);
+  setAll('[data-owner]', config.owner);
+  setAll('[data-owner-dative]', config.ownerDative);
+  setAll('[data-owner-full]', config.ownerFull);
+  setAll('[data-phone-text]', config.phoneText);
   document.getElementById('year').textContent = new Date().getFullYear();
-  if (config.phone) document.querySelectorAll('[data-phone]').forEach(link => { link.href = 'tel:' + String(config.phone).replace(/[^\d+]/g, ''); });
+  const phoneHref = config.phone ? 'tel:' + String(config.phone).replace(/[^\d+]/g, '') : '';
+  if (phoneHref) document.querySelectorAll('[data-phone]').forEach(link => { link.href = phoneHref; });
+  const telegramHref = config.telegram ? 'https://t.me/' + String(config.telegram).replace(/^@/, '') : '';
+  const whatsappHref = config.whatsapp ? 'https://wa.me/' + String(config.whatsapp).replace(/\D/g, '') : '';
+  function showLink(selector, href) {
+    if (!href) return;
+    document.querySelectorAll(selector).forEach(link => { link.href = href; link.hidden = false; });
+  }
+  showLink('[data-telegram]', telegramHref);
+  showLink('[data-whatsapp]', whatsappHref);
+  const messengerHref = telegramHref || whatsappHref;
+  if (messengerHref) {
+    document.querySelectorAll('[data-messenger]').forEach(link => {
+      link.querySelector('use')?.setAttribute('href', telegramHref ? '#i-telegram' : '#i-whatsapp');
+      link.setAttribute('aria-label', telegramHref ? 'Написать в Telegram' : 'Написать в WhatsApp');
+    });
+    showLink('[data-messenger]', messengerHref);
+  }
+
+  if (config.metrikaId) {
+    const id = Number(config.metrikaId);
+    window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
+    window.ym.l = Date.now();
+    const tag = document.createElement('script');
+    tag.async = true;
+    tag.src = 'https://mc.yandex.ru/metrika/tag.js';
+    document.head.append(tag);
+    window.ym(id, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
+  }
+  function goal(name) {
+    if (config.metrikaId && window.ym) window.ym(Number(config.metrikaId), 'reachGoal', name);
+  }
+  document.querySelectorAll('[data-goal]').forEach(link => link.addEventListener('click', () => goal(link.dataset.goal)));
+
   const modalOpen = () => dialog.open || offerDialog.open;
 
   function prepareVideo(scene) {
     scene.querySelectorAll('video[data-video]').forEach(video => {
-      if (video.dataset.loaded) return;
+      if (video.dataset.loaded || reduceMotion.matches) return;
       video.dataset.loaded = 'true';
       video.preload = 'auto';
       video.src = video.dataset.video;
       video.addEventListener('loadeddata', () => {
         video.classList.add('is-ready');
+        video.dataset.ready = 'true';
         playCurrent();
       }, { once: true });
       video.addEventListener('error', () => video.classList.remove('is-ready'));
@@ -71,6 +116,10 @@
     scenes[active].classList.add('is-active');
     scenes[active].removeAttribute('aria-hidden');
     currentLabel.textContent = String(active + 1).padStart(2, '0');
+    const upcoming = scenes[active + 1];
+    nextButton.hidden = !upcoming;
+    if (upcoming) nextLabel.textContent = upcoming.getAttribute('aria-label');
+    document.body.dataset.scene = scenes[active].id;
     railProgress.style.height = ((active + 1) / scenes.length * 100) + '%';
     dots.forEach((dot, index) => {
       dot.classList.toggle('is-current', index === active);
@@ -101,10 +150,12 @@
 
   function journeyTo(next) {
     const journeyVideo = journeyVideos[next];
-    if (!journeyVideo) { simpleTo(next); return; }
     const leaving = scenes[active];
     const entering = scenes[next];
     const sceneVideo = entering.querySelector('video');
+    // Travel through the filmed room only when both clips are already in memory.
+    const isReady = video => video?.dataset.ready === 'true' && !video.error;
+    if (!isReady(journeyVideo) || !isReady(sceneVideo)) { simpleTo(next); return; }
     traveling = true;
     journeyActive = true;
     primedSceneVideo = null;
@@ -305,9 +356,11 @@
     event.preventDefault();
     goTo(Number(link.dataset.go), true);
   }));
-  document.querySelector('[data-next]').addEventListener('click', () => goTo(active + 1, true));
+  document.querySelectorAll('[data-next]').forEach(button => button.addEventListener('click', () => goTo(active + 1, true)));
   document.querySelectorAll('[data-open-contact]').forEach(button => button.addEventListener('click', () => {
+    if (offerDialog.open) offerDialog.close();
     dialog.showModal();
+    goal('lead_form_open');
     playCurrent();
   }));
   document.querySelector('[data-close-contact]').addEventListener('click', () => dialog.close());
@@ -322,51 +375,118 @@
   offerDialog.addEventListener('click', event => { if (event.target === offerDialog) offerDialog.close(); });
   reduceMotion.addEventListener('change', playCurrent);
 
-  if (config.whatsapp) {
-    submitButton.innerHTML = 'Написать в WhatsApp <span aria-hidden="true">↗</span>';
-    status.textContent = 'После нажатия откроется WhatsApp с готовым сообщением.';
-  } else if (config.email) {
-    submitButton.innerHTML = 'Отправить по почте <span aria-hidden="true">↗</span>';
-    status.textContent = 'После нажатия откроется почтовое приложение.';
+  function formatPhone(value) {
+    let digits = value.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits[0] === '8') digits = '7' + digits.slice(1);
+    if (digits[0] === '9') digits = '7' + digits;
+    if (digits[0] !== '7') return '+' + digits.slice(0, 15);
+    digits = digits.slice(0, 11);
+    const parts = [digits.slice(1, 4), digits.slice(4, 7), digits.slice(7, 9), digits.slice(9, 11)];
+    let text = '+7';
+    if (parts[0]) text += ' (' + parts[0];
+    if (parts[0].length === 3) text += ')';
+    if (parts[1]) text += ' ' + parts[1];
+    if (parts[2]) text += '-' + parts[2];
+    if (parts[3]) text += '-' + parts[3];
+    return text;
   }
 
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (!form.reportValidity()) return;
-    const fields = new FormData(form);
-    const message = [
+  function leadMessage(lead) {
+    return [
       'Здравствуйте! Хочу заказать шоколадный фонтан.',
-      'Имя: ' + fields.get('name'),
-      'Контакт: ' + fields.get('contact'),
-      'Дата: ' + (fields.get('date') || 'уточняется'),
-      'Гостей: ' + (fields.get('guests') || 'уточняется'),
-      'Событие: ' + (fields.get('message') || 'уточняется')
+      'Имя: ' + lead.name,
+      'Телефон: ' + lead.phone,
+      'Дата: ' + (lead.date || 'уточняется'),
+      'Событие: ' + (lead.event || 'уточняется'),
+      'Гостей: ' + (lead.guests || 'уточняется')
     ].join('\n');
-    if (config.whatsapp) {
-      window.open('https://wa.me/' + String(config.whatsapp).replace(/\D/g, '') + '?text=' + encodeURIComponent(message), '_blank', 'noopener');
-      status.textContent = 'Открылся WhatsApp с готовой заявкой.';
-    } else if (config.email) {
-      location.href = 'mailto:' + encodeURIComponent(config.email) + '?subject=' + encodeURIComponent('Заявка с сайта: шоколадный фонтан') + '&body=' + encodeURIComponent(message);
-      status.textContent = 'Открылось почтовое приложение с готовой заявкой.';
-    } else {
-      try {
-        await navigator.clipboard.writeText(message);
-        status.textContent = 'Заявка скопирована. Позвоните Анастасии по номеру 8 961 323-77-33.';
-      } catch {
-        status.textContent = 'Скопируйте заявку: ' + message.replaceAll('\n', ' · ');
-      }
+  }
+
+  const today = new Date();
+  const minDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+  document.querySelectorAll('.lead-form').forEach(form => {
+    const status = form.querySelector('.form-status');
+    const submit = form.querySelector('button[type=submit]');
+    const phone = form.elements.phone;
+    const fields = form.querySelector('.lead-fields');
+    const success = form.querySelector('.lead-success');
+    form.elements.date.min = minDate;
+    if (telegramUser?.first_name) form.elements.name.value = telegramUser.first_name;
+
+    phone.addEventListener('input', () => {
+      const formatted = formatPhone(phone.value);
+      if (formatted !== phone.value) phone.value = formatted;
+      phone.setCustomValidity('');
+    });
+
+    function showSuccess(lead, delivered) {
+      const owner = config.owner || 'Мы';
+      form.querySelector('.lead-success-text').textContent = delivered
+        ? `Спасибо, ${lead.name}! ${owner} скоро перезвонит на номер ${lead.phone}, чтобы уточнить детали и закрепить дату.`
+        : `Спасибо, ${lead.name}! Заявка сохранена. Чтобы закрепить дату быстрее, позвоните ${config.ownerDative || 'нам'} прямо сейчас.`;
+      fields.hidden = true;
+      success.hidden = false;
+      success.querySelector('a')?.focus?.({ preventScroll: true });
+      try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success'); } catch { /* Outside Telegram. */ }
     }
+
+    function showFallback(lead) {
+      const message = leadMessage(lead);
+      const links = [];
+      if (telegramHref) links.push(`<a href="${telegramHref}" target="_blank" rel="noopener">Telegram</a>`);
+      if (whatsappHref) links.push(`<a href="${whatsappHref}?text=${encodeURIComponent(message)}" target="_blank" rel="noopener">WhatsApp</a>`);
+      if (phoneHref) links.push(`<a href="${phoneHref}">позвоните ${config.phoneText || ''}</a>`);
+      status.innerHTML = 'Не удалось отправить заявку — проверьте интернет и попробуйте ещё раз' + (links.length ? ' или свяжитесь напрямую: ' + links.join(', ') + '.' : '.');
+      status.classList.add('is-error');
+      navigator.clipboard?.writeText(message).catch(() => {});
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      status.classList.remove('is-error');
+      status.textContent = '';
+      if (phone.value.replace(/\D/g, '').length < 11) phone.setCustomValidity('Укажите номер телефона полностью');
+      if (!form.reportValidity()) return;
+      const data = new FormData(form);
+      const lead = {
+        name: String(data.get('name')).trim(),
+        phone: String(data.get('phone')).trim(),
+        date: data.get('date') ? new Date(data.get('date') + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+        guests: String(data.get('guests') || ''),
+        event: String(data.get('event') || ''),
+        company: String(data.get('company') || ''),
+        telegram: telegramUser?.username ? '@' + telegramUser.username : '',
+        page: location.href
+      };
+      submit.disabled = true;
+      submit.classList.add('is-sending');
+      try {
+        const response = await fetch('api/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lead)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error('Lead rejected: ' + response.status);
+        goal('lead');
+        showSuccess(lead, result.delivered);
+      } catch (error) {
+        console.error(error);
+        showFallback(lead);
+      } finally {
+        submit.disabled = false;
+        submit.classList.remove('is-sending');
+      }
+    });
   });
 
   async function startSite() {
     await (window.sitePreloader?.ready || Promise.resolve());
     railProgress.style.height = (100 / scenes.length) + '%';
-    Object.values(journeyVideos).forEach(video => {
-      if (video.src) return;
-      video.src = video.dataset.video;
-      video.preload = 'auto';
-      video.load();
-    });
+    document.getElementById('rail-total').textContent = String(scenes.length).padStart(2, '0');
+    document.body.dataset.scene = scenes[active].id;
     const hashIndex = scenes.findIndex(scene => '#' + scene.id === location.hash);
     if (hashIndex > 0) commitScene(hashIndex);
     else {
@@ -377,7 +497,7 @@
     if (firstVideo && !reduceMotion.matches) {
       await Promise.race([
         firstVideo.play().catch(() => {}),
-        new Promise(resolve => setTimeout(resolve, 1600))
+        new Promise(resolve => setTimeout(resolve, 500))
       ]);
     }
     if (window.sitePreloader) window.sitePreloader.reveal();
