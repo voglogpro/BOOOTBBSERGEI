@@ -13,46 +13,31 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="premium.css?v=mobile-framing-3" />
     <link rel="stylesheet" href="offer.css" />
-    <link rel="stylesheet" href="loader.css?v=1" />
+    <link rel="stylesheet" href="loader.css?v=2" />
     <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
     <script defer src="telegram-init.js"></script>
     <script defer src="site-config.js"></script>
-    <script defer src="preloader.js?v=1"></script>
-    <script defer src="script-v2.js?v=preload-1"></script>
+    <script defer src="preloader.js?v=2"></script>
+    <script defer src="script-v2.js?v=preload-2"></script>
   </head>
   <body class="is-loading">
     <div class="site-loader" id="site-loader" aria-label="Загрузка сайта">
       <div class="loader-inner">
         <p class="loader-kicker">Шоколадный фуршет · Краснодар</p>
-        <svg class="loader-fountain" viewBox="0 0 220 250" role="img" aria-label="Анимированный шоколадный фонтан">
-          <defs>
-            <linearGradient id="loader-chocolate" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#5b2b1b"/><stop offset=".45" stop-color="#b56e45"/><stop offset="1" stop-color="#5c2b1c"/></linearGradient>
-            <linearGradient id="loader-gold" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#7b5638"/><stop offset=".5" stop-color="#f4d1a2"/><stop offset="1" stop-color="#9b6b46"/></linearGradient>
-          </defs>
-          <path class="loader-spine" d="M105 35h10v154h-10z"/>
-          <path class="loader-cap" d="M82 37q28-13 56 0q-28 13-56 0z"/>
-          <g class="loader-curtains">
-            <path d="M88 58q22 9 44 0l10 28q-32 13-64 0z"/>
-            <path d="M78 91q32 11 64 0l12 29q-44 15-88 0z"/>
-            <path d="M66 125q44 14 88 0l13 32q-57 18-114 0z"/>
-            <path d="M53 164q57 16 114 0l15 33q-72 20-144 0z"/>
+        <svg class="loader-fountain" viewBox="0 0 220 250" role="img" aria-label="Шоколадный фонтан">
+          <path class="loader-column" d="M106 26h8v168h-8z" />
+          <g class="loader-streams">
+            <path d="M93 34v20m34-20v20M80 63v26m60-26v26M67 97v29m86-29v29M53 136v29m114-29v29" />
           </g>
-          <g class="loader-cascade">
-            <path d="M88 55c-2 16-3 18-9 30M132 55c2 16 3 18 9 30M78 87c-3 15-5 19-11 30M142 87c3 15 5 19 11 30M66 121c-3 18-6 24-13 35M154 121c3 18 6 24 13 35M53 160c-4 18-9 23-15 35M167 160c4 18 9 23 15 35"/>
+          <g class="loader-plates">
+            <path d="M92 30q18-12 36 0q-18 10-36 0z" />
+            <path d="M80 58q30-16 60 0q-30 17-60 0z" />
+            <path d="M67 92q43-22 86 0q-43 22-86 0z" />
+            <path d="M53 131q57-28 114 0q-57 27-114 0z" />
+            <path d="M36 170q74-35 148 0q-74 34-148 0z" />
           </g>
-          <g class="loader-sheen">
-            <path d="M89 56c-2 16-3 18-9 30M131 56c2 16 3 18 9 30M79 89c-3 15-5 19-11 30M141 89c3 15 5 19 11 30M67 123c-3 18-6 24-13 35M153 123c3 18 6 24 13 35M54 162c-4 18-9 23-15 35M166 162c4 18 9 23 15 35"/>
-          </g>
-          <g class="loader-tiers">
-            <path d="M79 53q31 17 62 0q-5 12-31 12T79 53z"/>
-            <path d="M67 85q43 20 86 0q-7 14-43 14T67 85z"/>
-            <path d="M54 119q56 23 112 0q-10 16-56 16T54 119z"/>
-            <path d="M39 158q71 28 142 0q-12 18-71 18T39 158z"/>
-            <path d="M27 195q83 29 166 0q-9 27-83 27T27 195z"/>
-          </g>
-          <path class="loader-base" d="M79 226h62l11 11H68z"/>
-          <circle class="loader-drop loader-drop-one" cx="50" cy="170" r="3"/>
-          <circle class="loader-drop loader-drop-two" cx="170" cy="174" r="2.5"/>
+          <path class="loader-bowl" d="M23 199q87 36 174 0q-14 27-87 29q-73-2-87-29z" />
+          <path class="loader-base" d="M93 231h34l9 9H84z" />
         </svg>
         <p class="loader-label">Немного предвкушения</p>
         <h2>Праздник начинается<br /><em>с шоколада.</em></h2>
@@ -78,7 +63,7 @@
     <main id="site" aria-label="Выездной шоколадный фонтан">
       <section class="scene scene-intro is-active" id="intro" data-index="0" aria-label="Главная">
         <div class="scene-media intro-media">
-          <video class="scene-video" data-video="assets/scene-01-locked-loop.mp4" poster="storyboard/01-real-fountain-v2.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+          <video class="scene-video" data-video="assets/scene-01-locked-loop-web.mp4" poster="storyboard/01-real-fountain-v2.webp" muted loop playsinline preload="none" aria-hidden="true"></video>
         </div>
         <div class="scene-shade intro-shade"></div>
         <div class="scene-content intro-content">
@@ -95,7 +80,7 @@
 
       <section class="scene scene-experience" id="experience" data-index="1" aria-label="Что входит в услугу" aria-hidden="true">
         <div class="scene-media soft-media">
-          <video class="scene-video" data-video="assets/scene-02-original-forward-loop.mp4" poster="storyboard/02-hands-strawberry-approved.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+          <video class="scene-video" data-video="assets/scene-02-original-forward-loop-web.mp4" poster="storyboard/02-hands-strawberry-approved.webp" muted loop playsinline preload="none" aria-hidden="true"></video>
         </div>
         <div class="scene-shade experience-shade"></div>
         <div class="scene-content experience-content">
@@ -108,7 +93,7 @@
 
       <section class="scene scene-details" id="details" data-index="2" aria-label="Стоимость и условия" aria-hidden="true">
         <div class="scene-media detail-media">
-          <video class="scene-video" data-video="assets/scene-03-loop.mp4" poster="storyboard/03-fountain-left-approved.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+          <video class="scene-video" data-video="assets/scene-03-loop-web.mp4" poster="storyboard/03-fountain-left-approved.webp" muted loop playsinline preload="none" aria-hidden="true"></video>
         </div>
         <div class="scene-shade details-shade"></div>
         <div class="scene-content details-content">
@@ -126,8 +111,8 @@
           <button class="details-link" type="button" data-open-offer>Что входит в предложение <span aria-hidden="true">↗</span></button>
         </div>
       </section>
-      <video class="journey-video" id="journey-video" data-video="assets/transition-01-02-full-4s.mp4" muted playsinline preload="none" aria-hidden="true"></video>
-      <video class="journey-video" id="journey-video-23" data-video="assets/transition-02-03-full-4s.mp4" muted playsinline preload="none" aria-hidden="true"></video>
+      <video class="journey-video" id="journey-video" data-video="assets/transition-01-02-full-4s-web.mp4" muted playsinline preload="none" aria-hidden="true"></video>
+      <video class="journey-video" id="journey-video-23" data-video="assets/transition-02-03-full-4s-web.mp4" muted playsinline preload="none" aria-hidden="true"></video>
     </main>
 
     <dialog class="contact-dialog" id="contact-dialog" aria-label="Обсудить мероприятие">

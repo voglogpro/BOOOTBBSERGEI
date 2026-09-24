@@ -23,7 +23,7 @@ main{height:100dvh;position:relative;isolation:isolate}
 .scene{position:absolute;inset:0;overflow:hidden;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(24px) scale(1.02);transition:opacity .72s ease,transform .85s cubic-bezier(.2,.72,.15,1),visibility .72s;isolation:isolate}
 .scene.is-active{opacity:1;visibility:visible;pointer-events:auto;transform:none;z-index:2}
 .scene-media,.scene-shade{position:absolute;inset:0;z-index:-2}
-.scene-media{background-image:url('assets/fountain-poster-v2.png');background-size:cover;background-position:center center;background-color:#22110d}
+.scene-media{background-image:url('assets/fountain-poster-v2.webp');background-size:cover;background-position:center center;background-color:#22110d}
 .scene-video{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .9s ease}
 .scene-video.is-ready{opacity:1}
 .scene-shade{z-index:-1}
@@ -106,9 +106,9 @@ em{font-style:normal;font-family:Georgia,'Times New Roman',serif;font-weight:400
 
 /* Approved three-scene story */
 .header-cta{background:transparent;color:var(--cream);font-family:inherit}
-.intro-media{background-image:url('storyboard/01-real-fountain-v2.png');background-position:center}
-.soft-media{background-image:url('storyboard/02-hands-strawberry-approved.png');background-position:center;filter:none}
-.detail-media{background-image:url('storyboard/03-fountain-left-approved.png');background-position:center;filter:none}
+.intro-media{background-image:url('storyboard/01-real-fountain-v2.webp');background-position:center}
+.soft-media{background-image:url('storyboard/02-hands-strawberry-approved.webp');background-position:center;filter:none}
+.detail-media{background-image:url('storyboard/03-fountain-left-approved.webp');background-position:center;filter:none}
 .experience-shade{background:linear-gradient(90deg,rgba(22,10,8,.78),rgba(22,10,8,.42) 35%,transparent 65%),linear-gradient(0deg,rgba(20,8,6,.3),transparent 42%)}
 .experience-content{justify-content:flex-start;padding-top:clamp(130px,15vh,180px)}
 .experience-content .eyebrow{margin-bottom:16px}

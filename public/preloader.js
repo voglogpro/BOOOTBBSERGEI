@@ -1,14 +1,14 @@
 (() => {
   const assets = [
-    { path: 'assets/scene-01-locked-loop.mp4', kind: 'video', size: 16037145 },
-    { path: 'assets/scene-02-original-forward-loop.mp4', kind: 'video', size: 6668541 },
-    { path: 'assets/scene-03-loop.mp4', kind: 'video', size: 2444921 },
-    { path: 'assets/transition-01-02-full-4s.mp4', kind: 'video', size: 3489472 },
-    { path: 'assets/transition-02-03-full-4s.mp4', kind: 'video', size: 3010483 },
-    { path: 'storyboard/01-real-fountain-v2.png', kind: 'image', size: 2172059 },
-    { path: 'storyboard/02-hands-strawberry-approved.png', kind: 'image', size: 2041987 },
-    { path: 'storyboard/03-fountain-left-approved.png', kind: 'image', size: 2203805 },
-    { path: 'assets/fountain-poster-v2.png', kind: 'image', size: 2070574 },
+    { path: 'assets/scene-01-locked-loop-web.mp4', kind: 'video', size: 6314401 },
+    { path: 'assets/scene-02-original-forward-loop-web.mp4', kind: 'video', size: 3926004 },
+    { path: 'assets/scene-03-loop-web.mp4', kind: 'video', size: 1356294 },
+    { path: 'assets/transition-01-02-full-4s-web.mp4', kind: 'video', size: 2665735 },
+    { path: 'assets/transition-02-03-full-4s-web.mp4', kind: 'video', size: 2264628 },
+    { path: 'storyboard/01-real-fountain-v2.webp', kind: 'image', size: 234810 },
+    { path: 'storyboard/02-hands-strawberry-approved.webp', kind: 'image', size: 194134 },
+    { path: 'storyboard/03-fountain-left-approved.webp', kind: 'image', size: 239106 },
+    { path: 'assets/fountain-poster-v2.webp', kind: 'image', size: 189846 },
     { path: 'assets/real-event-fountain.jpg', kind: 'image', size: 187622 }
   ];
   const loader = document.getElementById('site-loader');
