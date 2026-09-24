@@ -19,7 +19,7 @@ const cities = {
   rostov: { name: 'Ростов-на-Дону', in: 'в Ростове-на-Дону', phone: '+79613237733', chatIds: parseIds(process.env.TELEGRAM_CHAT_ID_ROSTOV) }
 };
 const cityAliases = { 'краснодар': 'krasnodar', krd: 'krasnodar', 'ростов': 'rostov', 'ростов-на-дону': 'rostov', rnd: 'rostov', 'rostov-na-donu': 'rostov' };
-const channelNames = { site: 'заявка на сайте', whatsapp: 'клиент пишет в WhatsApp', vk: 'клиент пишет ВКонтакте', telegram: 'клиент пишет в Telegram' };
+const channelNames = { site: 'заявка на сайте', whatsapp: 'клиент пишет в WhatsApp', vk: 'клиент пишет ВКонтакте' };
 const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -70,7 +70,7 @@ async function sendPage(request, response, method, cityKey) {
     .replaceAll('%PAGE_URL%', escapeAttr(pageUrl))
     .replaceAll('%SITE_URL%', escapeAttr(base))
     .replace('%LD_JSON%', JSON.stringify(business).replace(/</g, '\\u003c'))
-    .replace('<html lang="ru">', `<html lang="ru" data-city="${city ? cityKey : ''}">`);
+    .replace('<html lang="ru">', `<html lang="ru" data-city="${city ? cityKey : ''}" data-leads="${leadsConfigured() ? 'on' : 'off'}">`);
   const data = Buffer.from(html);
   response.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
@@ -168,6 +168,11 @@ function formatLead(lead) {
   ].filter(([, value]) => value);
   return '🍫 <b>Новая заявка с сайта</b>\n\n' +
     rows.map(([label, value]) => `<b>${label}:</b> ${escapeHtml(value)}`).join('\n');
+}
+
+// Site requests need somewhere to go; otherwise the page offers WhatsApp and VK only.
+function leadsConfigured() {
+  return Boolean(botToken) && (leadChatIds.length > 0 || Object.values(cities).some(city => city.chatIds.length > 0));
 }
 
 async function notifyTelegram(lead) {

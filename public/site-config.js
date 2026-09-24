@@ -3,7 +3,7 @@
 window.SITE_CONFIG = {
   brand: "Шоколадный фонтан",
   price: "12 000 ₽",
-  // Номер счётчика Яндекс Метрики: цели phone, whatsapp, vk, telegram, lead_form_open, lead.
+  // Номер счётчика Яндекс Метрики: цели phone, whatsapp, vk, lead_form_open, lead.
   metrikaId: "",
   cities: {
     krasnodar: {
@@ -22,9 +22,7 @@ window.SITE_CONFIG = {
       whatsapp: "79181123433",
       vk: "https://vk.ru/id836570910",
       // Ссылка, которая сразу открывает переписку ВКонтакте.
-      vkChat: "https://vk.com/write836570910",
-      // Имя пользователя Telegram без @.
-      telegram: ""
+      vkChat: "https://vk.com/write836570910"
     },
     rostov: {
       name: "Ростов-на-Дону",
@@ -39,8 +37,7 @@ window.SITE_CONFIG = {
       phoneText: "8 961 323-77-33",
       whatsapp: "79613237733",
       vk: "https://vk.ru/id48331149",
-      vkChat: "https://vk.com/write48331149",
-      telegram: ""
+      vkChat: "https://vk.com/write48331149"
     }
   }
 };

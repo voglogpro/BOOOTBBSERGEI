@@ -299,9 +299,15 @@ body.is-loading .scene-next{opacity:0}
 .channel svg{width:20px;height:20px}
 .channel-whatsapp svg{color:#1f9d55}
 .channel-vk svg{color:#2a6fdb}
-.channel-telegram svg{color:#229ed9}
 .channel:hover,.channel:focus-visible{background:#2b1710;border-color:#2b1710;color:#f9e9d0}
 .channel:hover svg,.channel:focus-visible svg{color:#f4d7b4}
+.form-or-alt{display:none}
+.lead-form.is-messenger-only button[type=submit],.lead-form.is-messenger-only .form-or-prefix{display:none}
+.lead-form.is-messenger-only .form-or-alt{display:inline}
+.lead-form.is-messenger-only .form-or{margin-top:6px}
+.lead-form.is-messenger-only .channel{height:52px;font-size:13px}
+.lead-form.is-messenger-only .channel-whatsapp{flex-basis:100%;background:#2b1710;border-color:#2b1710;color:#f9e9d0}
+.lead-form.is-messenger-only .channel-whatsapp svg{color:#7ee2a2}
 .form-status{margin-top:12px;font-size:12px;line-height:1.5;color:#3e2a1f}
 .contact-dialog{max-height:calc(100dvh - 24px)}
 @media(max-width:700px){

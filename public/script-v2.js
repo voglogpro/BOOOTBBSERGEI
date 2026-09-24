@@ -56,7 +56,6 @@
   let phoneHref = '';
   let whatsappNumber = '';
   let vkHref = '';
-  let telegramHref = '';
 
   function showLinks(selector, href) {
     document.querySelectorAll(selector).forEach(link => {
@@ -81,14 +80,11 @@
     phoneHref = city.phone ? 'tel:' + String(city.phone).replace(/[^\d+]/g, '') : '';
     whatsappNumber = String(city.whatsapp || '').replace(/\D/g, '');
     vkHref = city.vkChat || city.vk || '';
-    telegramHref = city.telegram ? 'https://t.me/' + String(city.telegram).replace(/^@/, '') : '';
     document.querySelectorAll('[data-phone]').forEach(link => { if (phoneHref) link.href = phoneHref; });
     showLinks('[data-whatsapp]', whatsappNumber ? 'https://wa.me/' + whatsappNumber : '');
     showLinks('[data-vk]', vkHref);
-    showLinks('[data-telegram]', telegramHref);
     document.querySelectorAll('[data-channel="whatsapp"]').forEach(button => { button.hidden = !whatsappNumber; });
     document.querySelectorAll('[data-channel="vk"]').forEach(button => { button.hidden = !vkHref; });
-    document.querySelectorAll('[data-channel="telegram"]').forEach(button => { button.hidden = !telegramHref; });
     document.querySelectorAll('[data-city-option]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.cityOption === key)));
     document.title = `Шоколадный фонтан на праздник ${city.in} — всё включено за ${config.price || '12 000 ₽'}`;
     if (remember) storage.set(key);
@@ -516,6 +512,11 @@
     if (!opened) location.href = url;
   }
 
+  // Without lead delivery set up on the server a site request would reach nobody,
+  // so the form then sends the assembled message straight to the master instead.
+  const siteLeads = document.documentElement.dataset.leads !== 'off';
+  if (!siteLeads) document.querySelectorAll('.lead-form').forEach(form => form.classList.add('is-messenger-only'));
+
   const today = new Date();
   const minDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
@@ -601,9 +602,9 @@
         openExternal(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`);
         setStatus(`Открываем WhatsApp — сообщение для ${city.ownerDative || 'мастера'} уже готово, осталось нажать «Отправить».`);
       } else {
-        // VK and Telegram links cannot carry text, so the message goes to the clipboard.
+        // A VK link cannot carry text, so the message goes to the clipboard.
         navigator.clipboard?.writeText(message).catch(() => {});
-        openExternal(channel === 'vk' ? vkHref : telegramHref);
+        openExternal(vkHref);
         setStatus(`Сообщение скопировано. Вставьте его в чат с ${city.ownerInstrumental || 'мастером'} и отправьте.`);
       }
       goal(channel);
