@@ -1,0 +1,127 @@
+﻿<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#21120e" />
+    <meta name="description" content="Шоколадный фонтан и фуршет с обслуживанием в Краснодаре. Пятиярусный фонтан, бельгийский шоколад Barry Callebaut, фрукты и выезд по городу — пакет за 12 000 ₽." />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <title>Шоколадный фонтан — праздник со вкусом</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="premium.css" />
+    <link rel="stylesheet" href="offer.css" />
+    <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script defer src="telegram-init.js"></script>
+    <script defer src="site-config.js"></script>
+    <script defer src="script-v2.js"></script>
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="#intro" data-go="0" aria-label="На первый экран">
+        <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-name" data-brand>Шоколадный фонтан</span>
+      </a>
+      <nav class="desktop-nav" aria-label="Разделы сайта">
+        <a href="#intro" data-go="0">Главная</a>
+        <a href="#experience" data-go="1">Гости у фонтана</a>
+        <a href="#details" data-go="2">Условия</a>
+      </nav>
+      <button class="header-cta" type="button" data-open-contact>Обсудить событие <span aria-hidden="true">↗</span></button>
+    </header>
+
+    <main id="site" aria-label="Выездной шоколадный фонтан">
+      <section class="scene scene-intro is-active" id="intro" data-index="0" aria-label="Главная">
+        <div class="scene-media intro-media">
+          <video class="scene-video" data-video="assets/scene-01-locked-loop.mp4" poster="storyboard/01-real-fountain-v2.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+        </div>
+        <div class="scene-shade intro-shade"></div>
+        <div class="scene-content intro-content">
+          <p class="eyebrow"><span class="eyebrow-line"></span> Шоколадный фуршет · Краснодар</p>
+          <h1>Шоколадный фонтан.<br /><em>Для вашего праздника.</em></h1>
+          <p class="lead">Пять ярусов бельгийского шоколада Barry Callebaut, свежие фрукты и забота о подаче. Привезём фонтан, оформим стол и обслужим гостей.</p>
+          <div class="hero-actions">
+            <button class="button button-light" type="button" data-open-contact>Обсудить мероприятие <span aria-hidden="true">↗</span></button>
+            <button class="text-button" type="button" data-next>Листайте вниз <span aria-hidden="true">↓</span></button>
+          </div>
+        </div>
+        <div class="hero-note"><span class="hero-note-icon">✦</span><span>10 лет создаём<br />сладкие моменты</span></div>
+      </section>
+
+      <section class="scene scene-experience" id="experience" data-index="1" aria-label="Что входит в услугу" aria-hidden="true">
+        <div class="scene-media soft-media">
+          <video class="scene-video" data-video="assets/scene-02-original-forward-loop.mp4" poster="storyboard/02-hands-strawberry-approved.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+        </div>
+        <div class="scene-shade experience-shade"></div>
+        <div class="scene-content experience-content">
+          <p class="eyebrow"><span class="eyebrow-line"></span> Вкус, ради которого возвращаются</p>
+          <h2>Настоящий шоколад.<br /><em>Красивый момент.</em></h2>
+          <p class="section-lead">Бельгийский шоколад Barry Callebaut, свежие фрукты и маршмеллоу. Мастер обслуживает фонтан и помогает гостям.</p>
+          <div class="experience-facts" aria-label="Качество и обслуживание"><span>Barry Callebaut</span><span>Свежие фрукты</span><span>Мастер у фонтана</span></div>
+        </div>
+      </section>
+
+      <section class="scene scene-details" id="details" data-index="2" aria-label="Стоимость и условия" aria-hidden="true">
+        <div class="scene-media detail-media">
+          <video class="scene-video" data-video="assets/scene-03-loop.mp4" poster="storyboard/03-fountain-left-approved.png" muted loop playsinline preload="none" aria-hidden="true"></video>
+        </div>
+        <div class="scene-shade details-shade"></div>
+        <div class="scene-content details-content">
+          <div class="details-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> Готовое предложение</p>
+            <h2>Всё включено.<br /><em>Всё для вашего вечера.</em></h2>
+            <p class="section-lead">Пятиярусный фонтан высотой 80 см, бельгийский шоколад, фруктовое ассорти и обслуживание на мероприятии.</p>
+          </div>
+          <div class="details-grid">
+            <article class="detail-card"><span class="detail-icon">◌</span><p>Стоимость пакета</p><strong data-price>12 000 ₽</strong><small>Фонтан · 5 ярусов · 80 см</small></article>
+            <article class="detail-card"><span class="detail-icon">✦</span><p>Всё включено</p><strong>3,5 кг + 4 кг</strong><small>Шоколад и фрукты; маршмеллоу и обслуживание</small></article>
+            <article class="detail-card"><span class="detail-icon">⌁</span><p>Выезд</p><strong data-region>Краснодар</strong><small>По городу бесплатно; дальше — по согласованию</small></article>
+          </div>
+          <div class="social-proof"><span class="proof-number">10 лет</span><span>работы с шоколадными фонтанами<br /><small>Только свежие и безопасные продукты</small></span></div>
+          <button class="details-link" type="button" data-open-offer>Что входит в предложение <span aria-hidden="true">↗</span></button>
+        </div>
+      </section>
+      <video class="journey-video" id="journey-video" src="assets/transition-01-02-full-4s.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <video class="journey-video" id="journey-video-23" src="assets/transition-02-03-full-4s.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+    </main>
+
+    <dialog class="contact-dialog" id="contact-dialog" aria-label="Обсудить мероприятие">
+      <button class="dialog-close" type="button" data-close-contact aria-label="Закрыть">×</button>
+      <div class="dialog-intro"><p class="eyebrow">Ваш праздник начинается здесь</p><h2>Обсудим<br /><em>ваше событие.</em></h2><p>Свяжитесь напрямую с Анастасией, чтобы согласовать дату, адрес и детали сервировки.</p><a class="contact-call" data-phone href="tel:+79613237733" aria-label="Позвонить Анастасии по номеру 8 961 323-77-33"><span>Позвонить Анастасии</span><strong>8 961 323-77-33</strong></a><p class="contact-owner">Остапенко Анастасия Олеговна</p></div>
+      <form class="contact-form" id="lead-form">
+            <p class="form-title">Расскажите о событии <span aria-hidden="true">✳</span></p>
+            <label>Как вас зовут<input name="name" type="text" autocomplete="name" placeholder="Ваше имя" required /></label>
+            <label>Как с вами связаться<input name="contact" type="text" autocomplete="tel" placeholder="Телефон или мессенджер" required /></label>
+            <div class="form-row">
+              <label>Дата<input name="date" type="date" /></label>
+              <label>Гостей<input name="guests" type="number" min="1" max="10000" placeholder="Количество" /></label>
+            </div>
+            <label>Что планируете?<textarea name="message" rows="2" placeholder="Свадьба, день рождения, корпоратив..."></textarea></label>
+            <button class="button button-dark" type="submit" id="submit-button">Скопировать заявку <span aria-hidden="true">↗</span></button>
+            <p class="form-status" id="form-status" role="status">Скопируйте сведения о событии и сообщите их Анастасии по телефону.</p>
+          </form>
+    </dialog>
+
+    <dialog class="offer-dialog" id="offer-dialog" aria-label="Предложение по шоколадному фонтану">
+      <button class="dialog-close" type="button" data-close-offer aria-label="Закрыть">×</button>
+      <div class="offer-photo"><img src="assets/real-event-fountain.jpg" alt="Реальный шоколадный фонтан и фруктовая сервировка на мероприятии" loading="lazy" /><span>Фото нашего фонтана на мероприятии</span></div>
+      <div class="offer-body">
+        <p class="eyebrow">Пятиярусный фонтан · Краснодар</p>
+        <h2>Праздник с<br /><em>настоящим вкусом.</em></h2>
+        <p class="offer-intro">10 лет я создаю шоколадные фуршеты для событий, которые хочется запомнить. Работаю с бельгийским шоколадом Barry Callebaut и свежими продуктами.</p>
+        <div class="offer-price"><span>Пакет «Всё включено»</span><strong>12 000 ₽</strong></div>
+        <div class="offer-section"><h3>В стоимость входит</h3><ul><li>Фонтан 5 ярусов, высота 80 см</li><li>3,5 кг бельгийского шоколада Barry Callebaut</li><li>4 кг свежих фруктов</li><li>Маршмеллоу на шпажках</li><li>Обслуживание фонтана на мероприятии</li><li>Бесплатный выезд по Краснодару</li></ul><p>Выезд за пределы Краснодара согласуется отдельно.</p></div>
+        <div class="offer-section"><h3>Для ваших событий</h3><p>Свадьбы, корпоративы, гендер-пати, 8 Марта, детские праздники, юбилеи, тематические вечеринки, девичники, предложения руки и сердца, выпускные и фуршеты.</p></div>
+        <div class="offer-section"><h3>Можно дополнить</h3><p>Профитролями с кремом, фруктовыми композициями, десертами, мармеладом, маршмеллоу и мороженым. К мороженому — кокосовая, маковая и ореховая посыпки.</p></div>
+        <a class="offer-call" data-phone href="tel:+79613237733">Обсудить дату с Анастасией <span aria-hidden="true">↗</span></a>
+      </div>
+    </dialog>
+
+    <div class="site-footer"><span>Краснодар · шоколадный фуршет</span><span>© <span id="year"></span></span></div>
+    <div class="scene-rail" aria-label="Навигация по экранам"><span class="rail-current" id="current-index">01</span><span class="rail-line"><span id="rail-progress"></span></span><span>03</span></div>
+    <div class="scene-dots" aria-label="Выбор экрана"><button type="button" data-go="0" class="is-current" aria-label="Главная"></button><button type="button" data-go="1" aria-label="Гости у фонтана"></button><button type="button" data-go="2" aria-label="Условия"></button></div>
+  </body>
+</html>

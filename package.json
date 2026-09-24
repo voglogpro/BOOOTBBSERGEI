@@ -1,0 +1,13 @@
+{
+  "name": "chocolate-fountain-miniapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Сайт выездного шоколадного фонтана и Telegram Mini App",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

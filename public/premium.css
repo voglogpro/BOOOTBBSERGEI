@@ -1,0 +1,86 @@
+/* The live scene videos remain in place; only an intentional swipe moves the room. */
+:root{
+  --cream:#fff2e6;
+  --cream-2:#e8d4c3;
+  --gold:#e5bd91;
+}
+/* One quiet, unanimated film texture covers both the scene footage and the travel clips. */
+.grain{
+  z-index:6;
+  opacity:.46;
+  mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+  background-size:192px 192px;
+}
+body{font-family:Manrope,Arial,sans-serif}
+.site-header{border-bottom-color:rgba(255,243,232,.23);background:linear-gradient(180deg,rgba(18,8,7,.64),transparent)}
+.brand{font-size:11px;font-weight:700;letter-spacing:.19em}
+.desktop-nav a,.header-cta,.button,.text-button,.details-link{font-weight:600}
+.desktop-nav a{font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+.header-cta{border-radius:0;padding:13px 16px}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.19em;color:#f4d3b4}
+.eyebrow-line{background:#dfb892}
+h1,h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;line-height:.88;letter-spacing:-.027em;text-wrap:balance}
+h1{font-size:clamp(72px,7.1vw,124px);max-width:820px;margin-bottom:27px}
+h2{font-size:clamp(60px,5.6vw,100px);margin-bottom:25px}
+h1 em,h2 em{font-family:inherit;font-size:1.01em;font-style:italic;font-weight:400;letter-spacing:-.035em;color:#efd0bc}
+.lead,.section-lead,.site-footer,.scene-rail,.feature-number{font-family:Manrope,Arial,sans-serif}
+.lead,.section-lead{font-size:clamp(14px,1.1vw,17px);line-height:1.7;font-weight:400;letter-spacing:.005em}
+.lead{max-width:505px}
+.button{border-radius:0;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+.button-light{background:#f4e5d5;color:#2a160f}
+.text-button{font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+.hero-note{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.experience-content h2{font-size:clamp(62px,5.6vw,96px);max-width:760px}
+.details-content h2{font-size:clamp(57px,4.8vw,88px)}
+.detail-card{background:rgba(28,13,11,.36);border-color:rgba(255,230,213,.3);backdrop-filter:blur(7px);box-shadow:inset 0 1px rgba(255,255,255,.06)}
+.detail-card p{font-weight:600;letter-spacing:.14em}
+.detail-card strong{font-weight:500;letter-spacing:-.035em}
+.proof-number{font-family:'Cormorant Garamond',Georgia,serif;font-size:46px;letter-spacing:-.03em}
+.social-proof[hidden]{display:none}
+.form-title,.dialog-intro h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500}
+.form-title{font-size:27px}
+.site-footer{font-size:9px;font-weight:500}
+.contact-dialog{border-radius:0}
+
+/* Each forward scene change can travel through a filmed room; copy appears over the moving camera. */
+.scene{transition:none}
+.scene.is-active,.scene.is-simple-exiting,.scene.is-simple-entering,.scene.is-video-entering{opacity:1;visibility:visible;transform:none}
+.scene.is-simple-exiting{z-index:2;pointer-events:none}
+.scene.is-simple-entering{z-index:3;pointer-events:none;animation:sceneSimpleIn .62s ease both}
+.scene.is-simple-entering .scene-content{animation:copyArrive .5s .1s both}
+.scene.is-journey-leaving .scene-media{filter:blur(4px) brightness(.84);transition:filter .4s ease}
+.scene.is-video-entering{z-index:5;pointer-events:none}
+.scene.is-video-entering .scene-media{opacity:0;filter:blur(3px) brightness(.92);transition:none}
+.scene.is-video-entering .scene-video{transition:none}
+.scene.is-video-entering.is-video-settling .scene-media{opacity:1;filter:none;transition:opacity .3s ease,filter .3s ease}
+.scene.is-video-entering .scene-shade{opacity:0;transition:none}
+.scene.is-video-entering.is-copy-visible .scene-shade{opacity:1;transition:opacity .4s ease}
+.scene.is-video-entering .scene-content{opacity:0;transition:none}
+.scene.is-video-entering.is-copy-visible .scene-content{opacity:1;transition:opacity .28s ease}
+.scene.is-video-entering.is-copy-visible .eyebrow{animation:copyArrive .45s ease both}
+.scene.is-video-entering.is-copy-visible h2{animation:copyArrive .58s .08s ease both}
+.scene.is-video-entering.is-copy-visible .section-lead{animation:copyArrive .55s .15s ease both}
+.journey-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:4;opacity:0;visibility:hidden;filter:blur(5px) brightness(.86);pointer-events:none;transition:opacity .4s ease,filter .4s ease,visibility .4s}
+.journey-video.is-visible{opacity:1;visibility:visible;filter:none}
+@keyframes sceneSimpleIn{from{opacity:0}to{opacity:1}}
+@keyframes copyArrive{from{opacity:0;transform:translateY(16px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+
+@media(max-width:1000px){
+  h1{font-size:clamp(69px,9vw,100px);max-width:650px}
+  .details-content h2{font-size:clamp(52px,5.5vw,76px)}
+}
+@media(max-width:700px){
+  .grain{opacity:.34}
+  h1{font-size:clamp(58px,11.8vw,84px);line-height:.91;max-width:100%}
+  h2,.experience-content h2,.details-content h2{font-size:clamp(49px,10.3vw,73px);line-height:.91}
+  .intro-content{padding-bottom:120px}
+  .lead,.section-lead{font-size:13px;line-height:1.6}
+  .details-content{padding-top:115px;padding-bottom:95px}
+  .detail-card{backdrop-filter:blur(5px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .grain{animation:none}
+  .journey-video{display:none}
+  .scene.is-simple-entering,.scene.is-simple-entering .scene-content{animation:none}
+}
