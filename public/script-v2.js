@@ -103,6 +103,7 @@
     document.querySelectorAll('[data-city-option]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.cityOption === key)));
     document.title = `${config.brand || 'Шоколадная фабрика'} — шоколадный фонтан на праздник ${city.in}`;
     renderClients(city.clients || []);
+    document.dispatchEvent(new Event('citychange'));
     if (remember) storage.set(key);
     if (updateUrl && location.pathname !== '/' + key) history.replaceState(null, '', '/' + key + location.search + location.hash);
   }
@@ -475,7 +476,8 @@
     return text;
   }
 
-  function leadMessage(lead) {
+  function leadMessage(lead, { preview = false } = {}) {
+    const name = lead.name || (preview ? '…' : '');
     const lines = [
       `Здравствуйте${city.owner ? ', ' + city.owner : ''}! Хочу заказать шоколадный фонтан.`,
       '',
@@ -486,7 +488,7 @@
       lead.guests && 'Гостей: ' + lead.guests,
       lead.place && 'Место: ' + lead.place,
       '',
-      'Меня зовут ' + lead.name + (lead.phone ? ', телефон ' + lead.phone : '') + '.'
+      'Меня зовут ' + name + (lead.phone ? ', телефон ' + lead.phone : '') + '.'
     ];
     return lines.filter(line => line !== false && line !== undefined && line !== null).join('\n').replace(/\n{3,}/g, '\n\n');
   }
@@ -551,6 +553,14 @@
       phone.setCustomValidity('');
     });
 
+    // The visitor sees the exact message the master will receive as it is being built.
+    const bubble = form.querySelector('.msg-bubble');
+    const updatePreview = () => { bubble.textContent = leadMessage(readLead(form, 'preview'), { preview: true }); };
+    form.addEventListener('input', updatePreview);
+    form.addEventListener('change', updatePreview);
+    document.addEventListener('citychange', updatePreview);
+    updatePreview();
+
     function setStatus(html, isError = false) {
       status.innerHTML = html;
       status.classList.toggle('is-error', isError);
@@ -585,7 +595,7 @@
       event.preventDefault();
       setStatus('');
       if (needCity()) return;
-      phone.setCustomValidity(phone.value.replace(/\D/g, '').length < 11 ? 'Укажите номер телефона, чтобы мы перезвонили' : '');
+      phone.setCustomValidity(phone.value.replace(/\D/g, '').length < 11 ? 'Для заявки на сайте укажите телефон — или отправьте сообщение во ВКонтакте' : '');
       if (!form.reportValidity()) return;
       const lead = readLead(form, 'site');
       submit.disabled = true;
@@ -616,12 +626,12 @@
       const message = leadMessage(lead);
       if (channel === 'whatsapp') {
         openExternal(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`);
-        setStatus(`Открываем WhatsApp — сообщение для ${city.ownerDative || 'мастера'} уже готово, осталось нажать «Отправить».`);
+        setStatus(`<b>✓ Открываем WhatsApp.</b> Сообщение для ${city.ownerDative || 'мастера'} уже вставлено — осталось нажать «Отправить».`);
       } else {
         // A VK link cannot carry text, so the message goes to the clipboard.
         navigator.clipboard?.writeText(message).catch(() => {});
         openExternal(vkHref);
-        setStatus(`Сообщение скопировано. Вставьте его в чат с ${city.ownerInstrumental || 'мастером'} и отправьте.`);
+        setStatus(`<b>✓ Сообщение скопировано.</b> В открывшемся чате с ${city.ownerInstrumental || 'мастером'} нажмите на поле ввода → «Вставить» → «Отправить».`);
       }
       goal(channel);
       postLead(lead).catch(() => {});

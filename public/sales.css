@@ -90,7 +90,7 @@
 .event-chips legend{padding:0;margin-bottom:8px;font-size:10px;font-weight:800;letter-spacing:.02em}
 .contact-form .event-chips label{margin:0;position:relative}
 .event-chips input{position:absolute;opacity:0;width:1px;height:1px}
-.event-chips span{display:inline-block;padding:7px 11px;border:1px solid rgba(64,38,25,.28);border-radius:40px;font-size:11px;font-weight:600;letter-spacing:0;color:#4a2e20;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.event-chips label span{display:inline-block;padding:7px 11px;border:1px solid rgba(64,38,25,.28);border-radius:40px;font-size:11px;font-weight:600;letter-spacing:0;color:#4a2e20;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
 .event-chips input:checked+span{background:#2b1710;border-color:#2b1710;color:#f9e9d0}
 .event-chips input:focus-visible+span{outline:2px solid #8e552e;outline-offset:2px}
 .honeypot{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
@@ -229,7 +229,7 @@ body.is-loading .scene-next{opacity:0}
   .dialog-perks,.contact-dialog .contact-owner{display:none}
   .contact-dialog .contact-call{display:none}
   .contact-dialog .contact-form{margin-top:14px}
-  .event-chips span{padding:7px 10px}
+  .event-chips label span{padding:7px 10px}
   .offer-actions{position:sticky;bottom:-27px;margin:22px -22px -27px;padding:12px 22px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#21120e 22%)}
   .offer-call{flex-basis:0}
   .offer-phone span{display:none}
@@ -303,13 +303,7 @@ body.is-loading .scene-next{opacity:0}
 .channel-vk svg{color:#2a6fdb}
 .channel:hover,.channel:focus-visible{background:#2b1710;border-color:#2b1710;color:#f9e9d0}
 .channel:hover svg,.channel:focus-visible svg{color:#f4d7b4}
-.form-or-alt{display:none}
-.lead-form.is-messenger-only button[type=submit],.lead-form.is-messenger-only .form-or-prefix{display:none}
-.lead-form.is-messenger-only .form-or-alt{display:inline}
-.lead-form.is-messenger-only .form-or{margin-top:6px}
-.lead-form.is-messenger-only .channel{height:52px;font-size:13px}
-.lead-form.is-messenger-only .channel-whatsapp{flex-basis:100%;background:#2b1710;border-color:#2b1710;color:#f9e9d0}
-.lead-form.is-messenger-only .channel-whatsapp svg{color:#7ee2a2}
+.lead-form.is-messenger-only button[type=submit],.lead-form.is-messenger-only .form-or{display:none}
 .form-status{margin-top:12px;font-size:12px;line-height:1.5;color:#3e2a1f}
 .contact-dialog{max-height:calc(100dvh - 24px)}
 @media(max-width:700px){
@@ -344,4 +338,59 @@ body.is-loading .scene-next{opacity:0}
   .clients b{font-size:13px}
   .has-clients .experience-events{display:none}
   .booking-copy .clients{order:3;margin:0 0 16px}
+}
+
+/* What we bring at our expense: big, plain, emoji-first */
+.treats{margin-top:22px;max-width:640px}
+.treats-title{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#f4d3b4}
+.treats-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.treats-list li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:14px 8px 12px;border:1px solid rgba(255,230,213,.34);background:rgba(28,13,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.treat-emoji{font-size:40px;line-height:1.1;margin-bottom:6px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.treats-list b{font-size:16px;font-weight:700;color:#fff6ec}
+.treats-list small{font-size:11px;line-height:1.35;color:rgba(255,240,226,.75)}
+.treats-more{margin:10px 0 0;font-size:13px;line-height:1.5;color:rgba(255,242,230,.85);text-shadow:0 1px 12px #25110d}
+.detail-emoji{font-size:26px;line-height:1;letter-spacing:-2px;white-space:nowrap}
+.detail-card:has(.detail-emoji){grid-template-columns:auto 1fr}
+.list-emoji{width:19px;font-size:17px;line-height:1;text-align:center;flex:none}
+
+/* Form as a message builder */
+.form-step{margin:0 0 14px;padding:0;border:0}
+.form-step legend,.step-title{display:flex;align-items:center;gap:8px;margin:0 0 9px;padding:0;font-size:12px;font-weight:800;letter-spacing:.01em;color:#2b1710}
+.form-step legend span,.step-title span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#2b1710;color:#f9e9d0;font-size:10px;font-weight:800}
+.form-step .form-row label,.form-step>label{margin-bottom:8px}
+.lead-form .event-chips label span{font-size:12px;padding:8px 12px}
+.msg-preview{margin:4px 0 14px;padding:12px 14px 13px;border-radius:14px 14px 14px 4px;background:#fff;border:1px solid rgba(64,38,25,.14);box-shadow:0 6px 18px rgba(43,23,16,.08)}
+.msg-to{margin:0 0 6px;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#2a6fdb}
+.msg-bubble{margin:0;white-space:pre-line;font-size:12.5px;line-height:1.5;color:#2f1d14}
+.send-channels{flex-direction:column}
+.channel{flex:none;width:100%;height:52px;font-size:13px}
+.channel-vk{background:#2a6fdb;border-color:#2a6fdb;color:#fff}
+.channel-vk svg{color:#fff}
+.channel-vk:hover,.channel-vk:focus-visible{background:#1f58b3;border-color:#1f58b3;color:#fff}
+.channel-vk:hover svg{color:#fff}
+.channel-whatsapp{background:#1f9d55;border-color:#1f9d55;color:#fff}
+.channel-whatsapp svg{color:#fff}
+.channel-whatsapp:hover,.channel-whatsapp:focus-visible{background:#17803f;border-color:#17803f;color:#fff}
+.channel-whatsapp:hover svg{color:#fff}
+.form-status b{color:#1f6b3a}
+.mobile-bar-book svg{width:19px;height:19px}
+@media(max-width:1000px) and (min-width:701px){.treats-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+  .treats{margin-top:14px}
+  .treats-title{font-size:10px;margin-bottom:8px}
+  .treats-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .treats-list li{padding:10px 3px 9px}
+  .treat-emoji{font-size:32px;margin-bottom:3px}
+  .treats-list b{font-size:12.5px}
+  .treats-list small{display:none}
+  .treats-more{font-size:11.5px}
+  .scene-experience .experience-events{display:none}
+  .detail-emoji{font-size:22px}
+}
+@media(max-width:700px) and (max-height:700px){
+  .scene-experience .section-lead{display:none}
+}
+.event-chips .step-title{flex-basis:100%;margin-bottom:3px}
+@media(max-width:700px){
+  body[data-scene=details] .scene-next,body[data-scene=experience] .scene-next{display:none}
 }
