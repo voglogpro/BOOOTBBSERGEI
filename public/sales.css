@@ -8,8 +8,9 @@
 /* Header */
 .brand{min-width:0;max-width:none;gap:12px}
 .brand-mark{width:30px;height:30px;color:var(--gold);stroke-width:1.35}
-.brand-name{display:flex;flex-direction:column;gap:4px}
-.brand-name small{font-size:9px;font-weight:500;letter-spacing:.16em;color:rgba(255,242,230,.62)}
+.brand-name{display:flex;flex-direction:column;gap:2px;letter-spacing:0;text-transform:none}
+.brand-name small{font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,236,216,.72)}
+.brand-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:25px;font-style:italic;font-weight:500;line-height:1;letter-spacing:.01em;color:#f7dcc2}
 .desktop-nav{gap:34px}
 .header-phone{display:flex;align-items:center;gap:9px;margin-right:22px;font-size:13px;font-weight:600;letter-spacing:.03em;color:#fff2e6;white-space:nowrap;transition:color .2s}
 .header-phone svg{width:15px;height:15px;color:var(--gold)}
@@ -169,7 +170,8 @@ body.is-loading .scene-next{opacity:0}
 
 @media(max-width:700px){
   .site-header{padding:0 18px}
-  .brand-name small{display:none}
+  .brand-name small{font-size:7.5px;letter-spacing:.18em}
+  .brand-title{font-size:21px}
   .brand-mark{width:25px;height:25px}
   .header-cta{display:none}
 
@@ -317,4 +319,29 @@ body.is-loading .scene-next{opacity:0}
   .city-option{padding:15px 16px;gap:12px}
   .city-option b{font-size:27px}
   .channel{height:48px}
+}
+
+/* Fruit: bananas and marshmallow come with the package, any other fruit is cut for free */
+.fruit-note{display:flex;align-items:flex-start;gap:12px;width:min(680px,100%);margin:10px 0 0;padding:13px 16px;border:1px dashed rgba(240,205,166,.55);background:rgba(240,205,166,.1);font-size:13px;line-height:1.5;color:rgba(255,242,230,.88)}
+.fruit-note svg{width:24px;height:24px;margin-top:1px;color:#f0cda6;stroke-width:1.4}
+.fruit-note b{color:#fff4e7;font-weight:700}
+.offer-body .fruit-note{width:auto;margin:12px 0 10px;font-size:13px}
+
+/* Organisations that trust the master */
+.clients{margin:18px 0 0}
+.clients>p{margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#e9c7a3}
+.clients ul,.clients-section ul{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.clients li,.clients-section li{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:46px;padding:8px 14px;border:1px solid rgba(255,227,199,.34);background:rgba(20,9,7,.45)}
+.clients b,.clients-section b{font-size:15px;font-weight:700;letter-spacing:.01em;color:#fff4e7}
+.clients small,.clients-section small{font-size:10.5px;color:rgba(255,238,220,.7)}
+.clients-section li{margin:0!important;padding:8px 14px!important}
+.booking-copy .clients{margin:0 0 22px}
+@media(max-width:700px){
+  .fruit-note{font-size:12px;padding:11px 12px;gap:10px}
+  .fruit-note svg{width:20px;height:20px}
+  .clients{margin-top:14px}
+  .clients li{min-height:40px;padding:6px 11px}
+  .clients b{font-size:13px}
+  .has-clients .experience-events{display:none}
+  .booking-copy .clients{order:3;margin:0 0 16px}
 }

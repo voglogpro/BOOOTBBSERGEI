@@ -3,12 +3,37 @@
 .site-loader.is-complete{opacity:0;visibility:hidden;pointer-events:none}
 .loader-inner{position:relative;width:min(420px,100%);text-align:center}
 .loader-kicker{margin:0;color:#d7b498;font:600 10px Manrope,Arial,sans-serif;letter-spacing:.25em;text-transform:uppercase}
-.loader-fountain{display:block;width:min(230px,56vw);height:auto;margin:22px auto 8px;overflow:visible;filter:drop-shadow(0 18px 24px rgba(0,0,0,.35))}
-.loader-column{fill:#9a674f}
-.loader-streams{fill:none;stroke:#c28b64;stroke-width:3;stroke-linecap:round;stroke-dasharray:5 8;animation:loader-pour 1.2s linear infinite}
-.loader-plates{fill:#85513b;stroke:#e4b993;stroke-width:2;stroke-linejoin:round}
-.loader-bowl{fill:#5e362a;stroke:#e4b993;stroke-width:2}
-.loader-base{fill:#6c412d;stroke:#d9ad7f;stroke-width:2}
+.loader-fountain{display:block;width:min(210px,52vw);height:auto;margin:20px auto 10px;overflow:visible;filter:drop-shadow(0 20px 26px rgba(0,0,0,.4))}
+.lf-shadow{fill:rgba(0,0,0,.38)}
+.lf-base{fill:url(#lf-red)}
+.lf-base-shine{fill:rgba(255,255,255,.16)}
+.lf-knob{fill:#1d1413;stroke:#d9d9dd;stroke-width:1.2}
+.lf-knob-ring{fill:none;stroke:rgba(255,255,255,.55);stroke-width:1;stroke-dasharray:2 2}
+.lf-neck{fill:#3a3b40}
+.lf-bowl{fill:url(#lf-steel)}
+.lf-bowl-shine{fill:none;stroke:rgba(255,255,255,.7);stroke-width:2;stroke-linecap:round}
+.lf-rim{fill:none;stroke:url(#lf-steel);stroke-width:3}
+.lf-pool{fill:#4a2413}
+.lf-ripple{fill:none;stroke:rgba(214,150,103,.55);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:lf-ripple 1.6s ease-out infinite}
+.lf-curtain{fill:url(#lf-choco)}
+.lf-gloss{fill:rgba(255,226,196,.2)}
+.lf-flow path{fill:none;stroke:rgba(255,214,176,.3);stroke-width:1.1;stroke-linecap:round;stroke-dasharray:11 13;animation:lf-flow 1.1s linear infinite}
+.lf-lip{fill:url(#lf-lip)}
+.lf-top{fill:#5a2d18}
+.lf-shine{fill:none;stroke:rgba(255,222,190,.45);stroke-width:1.4;stroke-linecap:round}
+.lf-crown{fill:url(#lf-lip)}
+.lf-bubble{fill:#7a4428;transform-box:fill-box;transform-origin:center bottom;animation:lf-bubble 1.4s ease-in-out infinite}
+.lf-berry{animation:lf-dip 3.6s cubic-bezier(.45,0,.3,1) infinite}
+.lf-skewer{stroke:#e2c08f;stroke-width:1.8;stroke-linecap:round}
+.lf-berry-body{fill:#d92b35}
+.lf-berry-dip{fill:#4a2211;opacity:0;animation:lf-coat 3.6s linear infinite}
+.lf-seeds{stroke:#ffd98a;stroke-width:1.6;stroke-linecap:round}
+.lf-leaf{fill:#3f8d3a}
+@keyframes lf-flow{to{stroke-dashoffset:-23}}
+@keyframes lf-ripple{from{transform:scale(.85);opacity:.9}to{transform:scale(1.25);opacity:0}}
+@keyframes lf-bubble{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.35)}}
+@keyframes lf-dip{0%,12%{transform:translateX(0)}38%,52%{transform:translateX(-14px)}78%,100%{transform:translateX(0)}}
+@keyframes lf-coat{0%,40%{opacity:0}50%,88%{opacity:1}100%{opacity:0}}
 .loader-label{margin:0 0 12px;color:#dcbb9f;font:600 10px Manrope,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase}
 .site-loader h2{margin:0 0 34px;font:500 clamp(38px,6vw,58px)/.95 'Cormorant Garamond',Georgia,serif;letter-spacing:-.025em}
 .site-loader h2 em{font-weight:400;font-style:italic;color:#ebc9b1}
@@ -19,7 +44,6 @@
 .loader-actions{min-height:38px;display:flex;justify-content:center;gap:18px;margin-top:22px}
 .loader-actions button{border:0;border-bottom:1px solid rgba(240,198,151,.7);padding:6px 0;background:transparent;color:#f0c697;font:600 10px Manrope,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
 .loader-actions button[hidden]{display:none}
-@keyframes loader-pour{to{stroke-dashoffset:-13}}
-@media(max-width:700px){.site-loader{padding:28px 25px}.loader-fountain{width:min(205px,55vw);margin-top:18px}.site-loader h2{margin-bottom:30px}}
-@media(max-height:650px){.loader-fountain{width:140px;margin:8px auto 0}.site-loader h2{font-size:40px;margin-bottom:22px}}
-@media(prefers-reduced-motion:reduce){.loader-streams{animation:none}.site-loader,.loader-progress>span{transition:none}}
+@media(max-width:700px){.site-loader{padding:28px 25px}.loader-fountain{width:min(190px,50vw);margin-top:16px}.site-loader h2{margin-bottom:30px}}
+@media(max-height:650px){.loader-fountain{width:120px;margin:8px auto 0}.site-loader h2{font-size:40px;margin-bottom:22px}}
+@media(prefers-reduced-motion:reduce){.lf-flow path,.lf-ripple,.lf-bubble,.lf-berry,.lf-berry-dip{animation:none}.site-loader,.loader-progress>span{transition:none}}

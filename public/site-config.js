@@ -1,7 +1,7 @@
 // Данные, которые чаще всего меняются. Пустое поле — кнопка на сайте не показывается.
 // Адрес города: /krasnodar, /rostov. Ключ города совпадает с адресом.
 window.SITE_CONFIG = {
-  brand: "Шоколадный фонтан",
+  brand: "Шоколадная фабрика Вилевонка",
   price: "12 000 ₽",
   // Номер счётчика Яндекс Метрики: цели phone, whatsapp, vk, lead_form_open, lead.
   metrikaId: "",
@@ -22,7 +22,9 @@ window.SITE_CONFIG = {
       whatsapp: "79181123433",
       vk: "https://vk.ru/id836570910",
       // Ссылка, которая сразу открывает переписку ВКонтакте.
-      vkChat: "https://vk.com/write836570910"
+      vkChat: "https://vk.com/write836570910",
+      // Организации, которые заказывали фонтан: показываются в блоке «Нам доверяют». Пусто — блок скрыт.
+      clients: []
     },
     rostov: {
       name: "Ростов-на-Дону",
@@ -37,7 +39,12 @@ window.SITE_CONFIG = {
       phoneText: "8 961 323-77-33",
       whatsapp: "79613237733",
       vk: "https://vk.ru/id48331149",
-      vkChat: "https://vk.com/write48331149"
+      vkChat: "https://vk.com/write48331149",
+      clients: [
+        { name: "Сбербанк", note: "главный офис в Ростове-на-Дону" },
+        { name: "Альфа-Банк", note: "главный офис" },
+        { name: "ТНС энерго", note: "" }
+      ]
     }
   }
 };

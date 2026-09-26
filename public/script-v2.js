@@ -27,11 +27,6 @@
   let wheelAmount = 0;
   let wheelTimer;
 
-  function setText(selector, value) {
-    const node = document.querySelector(selector);
-    if (node && value) node.textContent = value;
-  }
-
   function setAll(selector, value) {
     if (value) document.querySelectorAll(selector).forEach(node => { node.textContent = value; });
   }
@@ -39,7 +34,6 @@
   // Each form slot gets its own copy of the lead form before config values are applied.
   document.querySelectorAll('[data-lead-form-slot]').forEach(slot => slot.append(formTemplate.content.cloneNode(true)));
 
-  setText('[data-brand]', config.brand);
   setAll('[data-price]', config.price);
   document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -64,6 +58,27 @@
     });
   }
 
+  // "Нам доверяют": organisations that ordered from this city's master.
+  function renderClients(clients) {
+    document.querySelectorAll('[data-clients]').forEach(block => {
+      const list = block.querySelector('ul');
+      list.replaceChildren(...clients.map(client => {
+        const item = document.createElement('li');
+        const name = document.createElement('b');
+        name.textContent = client.name;
+        item.append(name);
+        if (client.note) {
+          const note = document.createElement('small');
+          note.textContent = client.note;
+          item.append(note);
+        }
+        return item;
+      }));
+      block.hidden = !clients.length;
+    });
+    document.documentElement.classList.toggle('has-clients', clients.length > 0);
+  }
+
   function applyCity(key, { remember = true, updateUrl = true } = {}) {
     if (!cities[key]) return;
     cityKey = key;
@@ -86,7 +101,8 @@
     document.querySelectorAll('[data-channel="whatsapp"]').forEach(button => { button.hidden = !whatsappNumber; });
     document.querySelectorAll('[data-channel="vk"]').forEach(button => { button.hidden = !vkHref; });
     document.querySelectorAll('[data-city-option]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.cityOption === key)));
-    document.title = `Шоколадный фонтан на праздник ${city.in} — всё включено за ${config.price || '12 000 ₽'}`;
+    document.title = `${config.brand || 'Шоколадная фабрика'} — шоколадный фонтан на праздник ${city.in}`;
+    renderClients(city.clients || []);
     if (remember) storage.set(key);
     if (updateUrl && location.pathname !== '/' + key) history.replaceState(null, '', '/' + key + location.search + location.hash);
   }
