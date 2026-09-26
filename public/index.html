@@ -22,17 +22,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=7" />
-    <link rel="stylesheet" href="premium.css?v=7" />
-    <link rel="stylesheet" href="offer.css?v=7" />
-    <link rel="stylesheet" href="loader.css?v=7" />
-    <link rel="stylesheet" href="sales.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="premium.css?v=8" />
+    <link rel="stylesheet" href="offer.css?v=8" />
+    <link rel="stylesheet" href="loader.css?v=8" />
+    <link rel="stylesheet" href="sales.css?v=8" />
     <script type="application/ld+json">%LD_JSON%</script>
     <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
     <script defer src="telegram-init.js"></script>
-    <script defer src="site-config.js?v=7"></script>
-    <script defer src="preloader.js?v=7"></script>
-    <script defer src="script-v2.js?v=7"></script>
+    <script defer src="site-config.js?v=8"></script>
+    <script defer src="preloader.js?v=8"></script>
+    <script defer src="script-v2.js?v=8"></script>
   </head>
   <body class="is-loading">
     <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -53,6 +53,7 @@
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
       <symbol id="i-banana" viewBox="0 0 24 24"><path d="M4.5 13.5c4.2 1.2 8.6-.4 11.3-4.4 1-1.5 1.6-3.3 1.8-5.2l1.9.6c.6 3.9-.6 8-3.6 10.9-3.3 3.3-8.3 4.4-12.4 2.6-.9-.4-.9-1.7 0-2.1Z"/><path d="m17.6 3.9.5-1.6M4.5 13.5c1.5.3 3 .3 4.4 0"/></symbol>
       <symbol id="i-knife" viewBox="0 0 24 24"><path d="M3 21 14.5 9.5M14.5 9.5l5.2-5.2a1.6 1.6 0 0 1 2.3 2.3c-1.4 3.2-3.8 5.6-7 7L13 12"/><path d="m6.5 17.5 2 2"/></symbol>
+      <symbol id="i-marshmallow" viewBox="0 0 24 24"><path d="M12 1.8v20.4"/><rect x="6.5" y="3.6" width="11" height="7" rx="3"/><rect x="6.5" y="12.4" width="11" height="7" rx="3"/><path d="M8.8 6.4h2.2M8.8 15.2h2.2"/></symbol>
       <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13.5 15-14-.4 10-6 15-14 15"/><path d="M5 19c3-4 6-6.5 9.5-8.5"/></symbol>
     </svg>
 
@@ -134,10 +135,10 @@
           <div class="treats">
             <p class="treats-title">Привозим за наш счёт</p>
             <ul class="treats-list" aria-label="Что входит в стоимость">
-              <li><span class="treat-emoji" aria-hidden="true">🍫</span><b>Шоколад</b><small>3,5 кг Barry Callebaut</small></li>
-              <li><span class="treat-emoji" aria-hidden="true">🍓</span><b>Клубника</b><small>свежая, на шпажках</small></li>
-              <li><span class="treat-emoji" aria-hidden="true">🍌</span><b>Бананы</b><small>нарезаем на месте</small></li>
-              <li><span class="treat-emoji" aria-hidden="true">🍡</span><b>Маршмеллоу</b><small>на шпажках</small></li>
+              <li><svg class="treat-icon" aria-hidden="true"><use href="#i-chocolate" /></svg><b>Шоколад</b><small>3,5 кг Barry Callebaut</small></li>
+              <li><svg class="treat-icon" aria-hidden="true"><use href="#i-strawberry" /></svg><b>Клубника</b><small>свежая, на шпажках</small></li>
+              <li><svg class="treat-icon" aria-hidden="true"><use href="#i-banana" /></svg><b>Бананы</b><small>нарезаем на месте</small></li>
+              <li><svg class="treat-icon" aria-hidden="true"><use href="#i-marshmallow" /></svg><b>Маршмеллоу</b><small>на шпажках</small></li>
             </ul>
             <p class="treats-more">Хотите что-то ещё? Обсудим в переписке — свои фрукты нарежем бесплатно.</p>
           </div>
@@ -160,7 +161,7 @@
           <ul class="details-grid" aria-label="Что мы привозим">
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-fountain" /></svg><div><p>Фонтан</p><strong>5 ярусов · 80 см</strong><small>Эффектный центр любого стола</small></div></li>
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-chocolate" /></svg><div><p>Шоколад</p><strong>3,5 кг</strong><small>Бельгийский Barry Callebaut</small></div></li>
-            <li class="detail-card"><span class="detail-emoji" aria-hidden="true">🍓🍌🍡</span><div><p>За наш счёт</p><strong>Клубника, бананы, маршмеллоу</strong><small>Уже в стоимости пакета</small></div></li>
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-strawberry" /></svg><div><p>За наш счёт</p><strong>Клубника, бананы, маршмеллоу</strong><small>Уже в стоимости пакета</small></div></li>
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-master" /></svg><div><p>Мастер и выезд</p><strong>0 ₽ доставка</strong><small>Мастер у фонтана, выезд <span data-city-prep>по Краснодару</span></small></div></li>
           </ul>
           <p class="fruit-note"><svg aria-hidden="true"><use href="#i-knife" /></svg><span><b>Хотите ананас, виноград или что-то ещё?</b> Договоримся в переписке, а свои фрукты нарежем бесплатно.</span></p>
@@ -228,9 +229,9 @@
           <ul class="offer-list">
             <li><svg aria-hidden="true"><use href="#i-fountain" /></svg>Фонтан 5 ярусов, высота 80 см</li>
             <li><svg aria-hidden="true"><use href="#i-chocolate" /></svg>3,5 кг бельгийского шоколада Barry Callebaut</li>
-            <li><span class="list-emoji" aria-hidden="true">🍓</span>Клубника</li>
-            <li><span class="list-emoji" aria-hidden="true">🍌</span>Бананы</li>
-            <li><span class="list-emoji" aria-hidden="true">🍡</span>Маршмеллоу на шпажках</li>
+            <li><svg aria-hidden="true"><use href="#i-strawberry" /></svg>Клубника</li>
+            <li><svg aria-hidden="true"><use href="#i-banana" /></svg>Бананы</li>
+            <li><svg aria-hidden="true"><use href="#i-marshmallow" /></svg>Маршмеллоу на шпажках</li>
             <li><svg aria-hidden="true"><use href="#i-master" /></svg>Обслуживание фонтана на мероприятии</li>
             <li><svg aria-hidden="true"><use href="#i-route" /></svg><span>Бесплатный выезд <span data-city-prep>по Краснодару</span></span></li>
           </ul>
@@ -280,11 +281,11 @@
           <p class="form-sub"><svg aria-hidden="true"><use href="#i-route" /></svg><span><span data-city-name>Город</span> · мастер <span data-owner>—</span></span><button type="button" class="form-city" data-open-city>сменить</button></p>
           <div class="form-step event-chips" role="radiogroup" aria-label="Какой праздник?">
             <p class="step-title"><span>1</span>Какой праздник?</p>
-            <label><input type="radio" name="event" value="Свадьба" /><span>💍 Свадьба</span></label>
-            <label><input type="radio" name="event" value="День рождения" /><span>🎂 День рождения</span></label>
-            <label><input type="radio" name="event" value="Корпоратив" /><span>🥂 Корпоратив</span></label>
-            <label><input type="radio" name="event" value="Детский праздник" /><span>🎈 Детский</span></label>
-            <label><input type="radio" name="event" value="Другой праздник" /><span>✨ Другое</span></label>
+            <label><input type="radio" name="event" value="Свадьба" /><span>Свадьба</span></label>
+            <label><input type="radio" name="event" value="День рождения" /><span>День рождения</span></label>
+            <label><input type="radio" name="event" value="Корпоратив" /><span>Корпоратив</span></label>
+            <label><input type="radio" name="event" value="Детский праздник" /><span>Детский</span></label>
+            <label><input type="radio" name="event" value="Другой праздник" /><span>Другое</span></label>
           </div>
           <div class="form-step">
             <p class="step-title"><span>2</span>Когда?</p>
@@ -310,9 +311,20 @@
             <p class="msg-bubble"></p>
           </div>
           <label class="honeypot" aria-hidden="true">Компания<input name="company" type="text" tabindex="-1" autocomplete="off" /></label>
+          <p class="send-hint"><svg aria-hidden="true"><use href="#i-check" /></svg><span>Сообщение скопируется само. Во ВКонтакте останется только <b>вставить его и отправить</b>, а в WhatsApp текст подставится автоматически.</span></p>
           <div class="send-channels">
             <button class="channel channel-vk" type="button" data-channel="vk" hidden><svg aria-hidden="true"><use href="#i-vk" /></svg>Отправить во ВКонтакте</button>
             <button class="channel channel-whatsapp" type="button" data-channel="whatsapp" hidden><svg aria-hidden="true"><use href="#i-whatsapp" /></svg>Отправить в WhatsApp</button>
+          </div>
+          <div class="vk-step" hidden>
+            <p class="vk-step-title"><span class="vk-step-check"><svg aria-hidden="true"><use href="#i-check" /></svg></span><span>Сообщение скопировано</span></p>
+            <ol class="vk-step-list">
+              <li>Нажмите кнопку ниже — откроется чат с <span data-owner-instrumental>мастером</span> во ВКонтакте.</li>
+              <li>Нажмите на поле ввода сообщения и выберите <b>«Вставить»</b>.</li>
+              <li>Нажмите <b>«Отправить»</b> — и всё, <span data-owner>мастер</span> ответит вам в переписке.</li>
+            </ol>
+            <button class="channel channel-vk" type="button" data-open-vk><svg aria-hidden="true"><use href="#i-vk" /></svg>Открыть чат во ВКонтакте</button>
+            <button class="vk-step-back" type="button" data-vk-back>Изменить сообщение</button>
           </div>
           <p class="form-or"><span>или</span></p>
           <button class="button button-dark" type="submit">Оставить заявку на сайте <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>

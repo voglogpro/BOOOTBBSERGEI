@@ -90,6 +90,7 @@
     setAll('[data-city-in]', city.in);
     setAll('[data-owner]', city.owner);
     setAll('[data-owner-dative]', city.ownerDative);
+    setAll('[data-owner-instrumental]', city.ownerInstrumental);
     setAll('[data-owner-full]', city.ownerFull);
     setAll('[data-phone-text]', city.phoneText);
     phoneHref = city.phone ? 'tel:' + String(city.phone).replace(/[^\d+]/g, '') : '';
@@ -520,6 +521,32 @@
     });
   }
 
+  // Clipboard API first; the textarea fallback covers older in-app browsers.
+  async function copyText(text, container) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch { /* Fall back below. */ }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    container.append(area);
+    area.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch { copied = false; }
+    area.remove();
+    return copied;
+  }
+
+  function selectText(node) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
   // Telegram Mini App blocks window.open; it has its own way to open outside links.
   function openExternal(url) {
     const app = window.Telegram?.WebApp;
@@ -627,15 +654,34 @@
       if (channel === 'whatsapp') {
         openExternal(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`);
         setStatus(`<b>✓ Открываем WhatsApp.</b> Сообщение для ${city.ownerDative || 'мастера'} уже вставлено — осталось нажать «Отправить».`);
+        goal(channel);
       } else {
-        // A VK link cannot carry text, so the message goes to the clipboard.
-        navigator.clipboard?.writeText(message).catch(() => {});
-        openExternal(vkHref);
-        setStatus(`<b>✓ Сообщение скопировано.</b> В открывшемся чате с ${city.ownerInstrumental || 'мастером'} нажмите на поле ввода → «Вставить» → «Отправить».`);
+        // A VK link cannot carry text: copy it, say so, and open the chat on the next tap.
+        copyText(message, form).then(copied => {
+          vkStep.querySelector('.vk-step-title span:last-child').textContent = copied ? 'Сообщение скопировано' : 'Скопируйте сообщение';
+          if (!copied) selectText(form.querySelector('.msg-bubble'));
+          form.classList.add('is-vk-step');
+          vkStep.hidden = false;
+          vkStep.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
       }
-      goal(channel);
       postLead(lead).catch(() => {});
     }));
+
+    const vkStep = form.querySelector('.vk-step');
+    vkStep.querySelector('[data-open-vk]').addEventListener('click', () => {
+      openExternal(vkHref);
+      goal('vk');
+    });
+    vkStep.querySelector('[data-vk-back]').addEventListener('click', () => {
+      vkStep.hidden = true;
+      form.classList.remove('is-vk-step');
+    });
+    form.addEventListener('input', () => {
+      if (vkStep.hidden) return;
+      vkStep.hidden = true;
+      form.classList.remove('is-vk-step');
+    });
   });
 
   async function startSite() {

@@ -340,18 +340,15 @@ body.is-loading .scene-next{opacity:0}
   .booking-copy .clients{order:3;margin:0 0 16px}
 }
 
-/* What we bring at our expense: big, plain, emoji-first */
+/* What we bring at our expense: big, plain icons */
 .treats{margin-top:22px;max-width:640px}
 .treats-title{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#f4d3b4}
 .treats-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
 .treats-list li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:14px 8px 12px;border:1px solid rgba(255,230,213,.34);background:rgba(28,13,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.treat-emoji{font-size:40px;line-height:1.1;margin-bottom:6px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.treat-icon{width:52px;height:52px;margin-bottom:8px;padding:11px;border:1px solid rgba(232,192,149,.5);border-radius:50%;background:rgba(232,192,149,.1);color:#f0cda6;stroke-width:1.3}
 .treats-list b{font-size:16px;font-weight:700;color:#fff6ec}
 .treats-list small{font-size:11px;line-height:1.35;color:rgba(255,240,226,.75)}
 .treats-more{margin:10px 0 0;font-size:13px;line-height:1.5;color:rgba(255,242,230,.85);text-shadow:0 1px 12px #25110d}
-.detail-emoji{font-size:26px;line-height:1;letter-spacing:-2px;white-space:nowrap}
-.detail-card:has(.detail-emoji){grid-template-columns:auto 1fr}
-.list-emoji{width:19px;font-size:17px;line-height:1;text-align:center;flex:none}
 
 /* Form as a message builder */
 .form-step{margin:0 0 14px;padding:0;border:0}
@@ -380,12 +377,11 @@ body.is-loading .scene-next{opacity:0}
   .treats-title{font-size:10px;margin-bottom:8px}
   .treats-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
   .treats-list li{padding:10px 3px 9px}
-  .treat-emoji{font-size:32px;margin-bottom:3px}
+  .treat-icon{width:42px;height:42px;padding:9px;margin-bottom:5px}
   .treats-list b{font-size:12.5px}
   .treats-list small{display:none}
   .treats-more{font-size:11.5px}
   .scene-experience .experience-events{display:none}
-  .detail-emoji{font-size:22px}
 }
 @media(max-width:700px) and (max-height:700px){
   .scene-experience .section-lead{display:none}
@@ -394,3 +390,19 @@ body.is-loading .scene-next{opacity:0}
 @media(max-width:700px){
   body[data-scene=details] .scene-next,body[data-scene=experience] .scene-next{display:none}
 }
+
+/* Messenger hand-off: what happens is said before and right after the tap */
+.send-hint{display:flex;gap:9px;align-items:flex-start;margin:0 0 10px;padding:10px 12px;background:#fff8ef;border:1px solid rgba(64,38,25,.14);font-size:12px;line-height:1.5;color:#4a3326}
+.send-hint svg{width:16px;height:16px;margin-top:2px;color:#1f6b3a;stroke-width:2.2}
+.send-hint b{color:#2b1710}
+.vk-step{margin:0 0 6px;padding:16px 16px 12px;border:1px solid rgba(42,111,219,.35);background:#f2f6fd}
+.vk-step-title{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:16px;font-weight:800;color:#1e3f7a}
+.vk-step-check{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#2a6fdb;color:#fff}
+.vk-step-check svg{width:16px;height:16px;stroke-width:2.4}
+.vk-step-list{margin:0 0 14px;padding-left:20px;font-size:13px;line-height:1.55;color:#2f3b52}
+.vk-step-list li{margin:3px 0}
+.vk-step-list b{color:#1e3f7a}
+.vk-step-back{display:block;margin:10px auto 0;border:0;background:none;color:#6e5646;font-family:inherit;font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.lead-form.is-vk-step .send-channels,.lead-form.is-vk-step .send-hint{display:none}
+/* The offer screen needs no "next" cue: the booking button is right there. */
+body[data-scene=details] .scene-next{display:none}
