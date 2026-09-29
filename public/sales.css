@@ -6,12 +6,12 @@
 .text-button svg{width:14px;height:14px}
 
 /* Header */
-.brand{min-width:0;max-width:none;gap:12px}
+.brand{min-width:0;max-width:none;gap:11px;flex-shrink:0}
 .brand-mark{width:30px;height:30px;color:var(--gold);stroke-width:1.35}
-.brand-name{display:flex;flex-direction:column;gap:2px;letter-spacing:0;text-transform:none}
-.brand-name small{font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,236,216,.72)}
-.brand-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:25px;font-style:italic;font-weight:500;line-height:1;letter-spacing:.01em;color:#f7dcc2}
+.brand-name{display:flex;align-items:center;min-width:0;letter-spacing:0;text-transform:none}
+.brand-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(20px,1.8vw,25px);font-style:italic;font-weight:500;line-height:1;letter-spacing:0;color:#f7dcc2;white-space:nowrap}
 .desktop-nav{gap:34px}
+@media(max-width:1180px){.desktop-nav{display:none}}
 .header-phone{display:flex;align-items:center;gap:9px;margin-right:22px;font-size:13px;font-weight:600;letter-spacing:.03em;color:#fff2e6;white-space:nowrap;transition:color .2s}
 .header-phone svg{width:15px;height:15px;color:var(--gold)}
 .header-phone:hover{color:var(--gold)}
@@ -52,7 +52,7 @@
 .details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;list-style:none;margin:0;padding:0;width:min(680px,100%)}
 .detail-card{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:start;min-height:0;padding:18px 18px 17px;background:rgba(28,13,11,.52);border-color:rgba(255,230,213,.34)}
 .detail-card>div{min-width:0}
-.detail-icon{width:44px;height:44px;padding:8px;border:1px solid rgba(232,192,149,.45);border-radius:50%;color:#f0cda6;stroke-width:1.35;background:rgba(232,192,149,.08)}
+.detail-icon{width:44px;height:44px;padding:8px;border:1px solid rgba(242,213,180,.38);border-radius:12px;color:#f0cda6;stroke-width:1.35;background:linear-gradient(145deg,rgba(242,213,180,.19),rgba(242,213,180,.045))}
 .detail-card p{margin:1px 0 5px;font-size:10px;font-weight:700;letter-spacing:.14em;color:#e9c7a3}
 .detail-card strong{display:block;margin-bottom:0;font-size:clamp(21px,1.75vw,28px);font-weight:600;line-height:1.1;letter-spacing:-.02em;color:#fff6ec}
 .detail-card small{display:block;margin-top:6px;font-size:12.5px;line-height:1.45;color:rgba(255,240,226,.82)}
@@ -170,7 +170,6 @@ body.is-loading .scene-next{opacity:0}
 
 @media(max-width:700px){
   .site-header{padding:0 18px}
-  .brand-name small{font-size:7.5px;letter-spacing:.18em}
   .brand-title{font-size:21px}
   .brand-mark{width:25px;height:25px}
   .header-cta{display:none}
@@ -367,10 +366,13 @@ body.is-loading .scene-next{opacity:0}
   .detail-card small{margin-top:3px}
 }
 
-@media (max-width:360px){
-  .brand-name small{font-size:6.5px}
-  .brand-title{font-size:19px}
-  .city-switch{padding:7px 8px;font-size:10px}
+@media (max-width:380px){
+  .brand{gap:6px}
+  .brand-mark{width:20px;height:22px}
+  .brand-title{font-size:17px;letter-spacing:-.025em}
+  .city-switch{gap:5px;padding:6px;font-size:9.5px}
+  .city-switch svg{width:13px;height:13px}
+  .city-switch .city-chevron{width:10px;height:10px}
 }
 .booking-copy .clients{margin:0 0 22px}
 @media(max-width:700px){
@@ -388,7 +390,7 @@ body.is-loading .scene-next{opacity:0}
 .treats-title{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#f4d3b4}
 .treats-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
 .treats-list li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:14px 8px 12px;border:1px solid rgba(255,230,213,.34);background:rgba(28,13,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.treat-icon{width:52px;height:52px;margin-bottom:8px;padding:11px;border:1px solid rgba(232,192,149,.5);border-radius:50%;background:rgba(232,192,149,.1);color:#f0cda6;stroke-width:1.3}
+.treat-icon{width:52px;height:52px;margin-bottom:8px;padding:10px;border:1px solid rgba(242,213,180,.38);border-radius:14px;background:linear-gradient(145deg,rgba(242,213,180,.2),rgba(242,213,180,.055));color:#f0cda6;stroke-width:1.3}
 .treats-list b{font-size:16px;font-weight:700;color:#fff6ec}
 .treats-list small{font-size:11px;line-height:1.35;color:rgba(255,240,226,.75)}
 .treats-more{margin:10px 0 0;font-size:13px;line-height:1.5;color:rgba(255,242,230,.85);text-shadow:0 1px 12px #25110d}

@@ -54,7 +54,7 @@ async function sendPage(request, response, method, cityKey) {
   const business = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    name: 'Шоколадная фабрика Вилевонка' + (city ? ' — шоколадный фонтан ' + city.in : ''),
+    name: 'Шоколадная фабрика',
     description: 'Выездной шоколадный фонтан с мастером и фруктами на свадьбы, дни рождения и корпоративы.',
     url: pageUrl,
     image: base + '/assets/og-image.jpg',
