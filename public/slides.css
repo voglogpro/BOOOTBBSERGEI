@@ -1,0 +1,121 @@
+/* The four scenes are viewport-sized panels. Long message and offer details live in dialogs. */
+html,body,#site{height:100%;height:100dvh;overflow:hidden}
+.scene,.scene-booking,.scene-details{overflow:hidden;overscroll-behavior:none;touch-action:pan-x}
+.scene-content,.booking-content,.details-content{height:100%;height:100dvh;min-height:0}
+.scene-media,.scene-shade{position:absolute}
+
+.booking-content{display:flex;align-items:center;max-width:1100px;padding-top:clamp(86px,11vh,130px);padding-bottom:clamp(65px,8vh,95px)}
+.booking-copy{max-width:760px}
+.booking-open{margin:0 0 20px}
+.booking-content h2{font-size:clamp(48px,5vw,78px);margin-bottom:12px}
+.booking-content .section-lead{margin-bottom:18px}
+.booking-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:760px;margin:0 0 20px;border-top:0}
+.booking-steps li{display:block;border-top:1px solid var(--line);border-bottom:0;padding:10px 0 0}
+.booking-steps b{font-size:12px}
+.booking-steps div{font-size:11px}
+.booking-direct{gap:8px}
+.direct-link{padding:9px 12px}
+
+/* Fit the price cards without the oversized dark backgrounds. */
+.details-content{justify-content:center;padding-top:clamp(86px,11vh,120px);padding-bottom:clamp(55px,7vh,85px)}
+.details-copy h2{font-size:clamp(38px,4vw,62px);margin-bottom:9px}
+.details-price{margin-bottom:12px}
+.details-grid{gap:7px}
+.detail-card{padding:10px 12px;gap:10px;background:rgba(28,13,11,.38)}
+.detail-icon{width:36px;height:36px;padding:7px}
+.detail-card p{margin:0 0 2px}
+.detail-card strong{font-size:clamp(17px,1.5vw,23px)}
+.detail-card small{margin-top:2px;font-size:11px}
+.scene-details .fruit-note{margin-top:8px;padding:8px 11px;font-size:11px}
+.details-actions{margin-top:10px}
+.details-actions .button{padding:13px 16px}
+
+.experience-content{justify-content:center;padding-top:clamp(86px,11vh,125px);padding-bottom:clamp(60px,8vh,95px)}
+.experience-content h2{margin-bottom:10px}
+.treats{margin-top:12px}
+.treats-list li{padding:8px 6px;background:rgba(28,13,11,.36)}
+.treat-icon{width:38px;height:38px;padding:8px;margin-bottom:3px}
+.treats-more{margin-top:6px}
+.experience-content .clients{margin-top:8px}
+.experience-content .clients li{min-height:32px;padding:4px 9px}
+
+@media(max-width:1100px) and (min-width:701px){
+  .booking-content{max-width:900px}
+  .details-content{padding-left:42%;padding-right:5%}
+  .details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(min-width:701px) and (max-height:740px){
+  .scene-content{padding-top:78px;padding-bottom:45px}
+  .intro-content h1{font-size:clamp(46px,5vw,70px);margin-bottom:12px}
+  .intro-content .lead{margin-bottom:12px}
+  .hero-price{margin-bottom:14px}
+  .experience-content h2{font-size:clamp(38px,4vw,56px)}
+  .experience-content .section-lead{font-size:13px;line-height:1.4}
+  .treats-list small{display:none}
+  .treats-more,.experience-events{display:none}
+  .details-content .eyebrow,.booking-content .eyebrow{margin-bottom:8px}
+  .details-content h2,.booking-content h2{font-size:clamp(38px,4vw,56px)}
+  .scene-details .fruit-note{display:none}
+  .booking-steps{margin-bottom:12px}
+  .booking-steps div{line-height:1.3}
+}
+@media(max-width:700px){
+  .scene-content,.intro-content,.experience-content,.details-content,.booking-content{height:100%;height:100dvh;min-height:0;padding-left:20px;padding-right:20px;padding-top:clamp(72px,12dvh,105px);padding-bottom:calc(78px + env(safe-area-inset-bottom))}
+  .intro-content,.experience-content,.details-content{justify-content:flex-end}
+  .intro-content .eyebrow,.experience-content .eyebrow,.details-content .eyebrow{margin-bottom:9px}
+  .intro-content h1{font-size:clamp(36px,9.5vw,52px);margin-bottom:10px}
+  .intro-content .lead{font-size:12px;line-height:1.4;margin-bottom:10px}
+  .hero-price{padding-top:7px;margin-bottom:10px}
+  .hero-price strong{font-size:31px}
+  .hero-actions{gap:5px 12px}
+  .hero-actions .button{padding:11px 13px}
+  .experience-content h2{font-size:clamp(35px,8.7vw,54px);margin-bottom:7px}
+  .experience-content .section-lead{font-size:11px;line-height:1.4}
+  .treats{margin-top:9px}
+  .treats-title{margin-bottom:5px}
+  .treats-list{gap:4px}
+  .treats-list li{padding:5px 2px 4px;gap:1px;border-color:rgba(255,230,213,.2);background:rgba(28,13,11,.3)}
+  .treat-icon{width:29px;height:29px;padding:5px;margin:0;border:0;background:none}
+  .treats-list b{font-size:10px}
+  .treats-more{font-size:10px;line-height:1.35;margin-top:5px}
+  .experience-content .clients{margin-top:5px}
+  .experience-content .clients>p{display:none}
+  .experience-content .clients li{min-height:0;padding:3px 7px}
+  .experience-content .clients b{font-size:10px}
+  .experience-content .clients small{display:none}
+  .details-content h2{font-size:clamp(35px,8.6vw,50px);margin-bottom:7px}
+  .details-price{margin-bottom:8px;gap:8px}
+  .details-price strong{font-size:32px}
+  .details-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .detail-card{display:flex;flex-direction:column;gap:2px;padding:6px 7px;background:rgba(25,12,9,.33)}
+  .detail-icon{width:25px;height:25px;padding:3px;border:0;background:none}
+  .detail-card p{font-size:8px;margin:0}
+  .detail-card strong{font-size:13px;line-height:1.08}
+  .detail-card small{font-size:9px;line-height:1.2;margin-top:2px}
+  .scene-details .fruit-note{font-size:10px;line-height:1.3;padding:6px 8px;margin-top:6px}
+  .scene-details .fruit-note svg{width:16px;height:16px}
+  .details-actions{margin-top:8px;gap:7px 12px}
+  .details-actions .button{padding:10px 12px}
+  .booking-content{display:flex;justify-content:center;align-items:flex-start;flex-direction:column;padding-top:82px}
+  .booking-copy{display:block;width:100%}
+  .booking-content .eyebrow{margin-bottom:10px}
+  .booking-content h2{font-size:clamp(38px,9vw,52px);margin-bottom:10px}
+  .booking-content .section-lead{font-size:12px;line-height:1.45;margin-bottom:12px}
+  .booking-open{margin-bottom:12px;padding:12px 15px}
+  .booking-steps{display:none}
+  .booking-copy .clients{margin:0 0 10px}
+  .booking-copy .clients li{min-height:0;padding:4px 8px}
+  .booking-copy .clients b{font-size:10px}
+  .booking-copy .clients small{display:none}
+  .booking-direct{margin:0}
+  .direct-link{padding:7px 10px;flex:0 1 auto}
+  .direct-link b{font-size:12px}
+}
+@media(max-width:700px) and (max-height:650px){
+  .scene-content,.intro-content,.experience-content,.details-content,.booking-content{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .intro-content .lead{display:none}
+  .experience-content .section-lead,.experience-content .clients,.treats-more{display:none}
+  .details-content .fruit-note{display:none}
+  .detail-card small{display:none}
+  .booking-content .clients{display:none}
+}

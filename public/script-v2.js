@@ -400,26 +400,11 @@
     }
   }
 
-  function scrollCurrentScene(amount) {
-    const scene = scenes[active];
-    const maxScroll = scene.scrollHeight - scene.clientHeight;
-    if (maxScroll < 2 || !amount) return false;
-    const position = scene.scrollTop;
-    if ((amount > 0 && position >= maxScroll - 2) || (amount < 0 && position <= 2)) return false;
-    scene.scrollTop = Math.max(0, Math.min(maxScroll, position + amount));
-    return true;
-  }
-
   addEventListener('wheel', event => {
-    if (modalOpen() || event.ctrlKey || event.target?.closest?.('input, textarea')) return;
+    if (modalOpen() || event.ctrlKey) return;
     event.preventDefault();
     if (traveling || Date.now() < lockedUntil) return;
-    const wheelPixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scenes[active].clientHeight : 1);
-    if (scrollCurrentScene(wheelPixels)) {
-      wheelAmount = 0;
-      return;
-    }
-    wheelAmount += event.deltaY;
+    wheelAmount += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scenes[active].clientHeight : 1);
     clearTimeout(wheelTimer);
     wheelTimer = setTimeout(() => { wheelAmount = 0; }, 180);
     if (Math.abs(wheelAmount) > 26) {
@@ -430,15 +415,14 @@
 
   addEventListener('touchstart', event => {
     if (modalOpen() || event.touches.length !== 1 || event.target?.closest?.('input, textarea')) return;
-    touchStart = { y: event.touches[0].clientY, x: event.touches[0].clientX, scrollTop: scenes[active].scrollTop };
+    touchStart = { y: event.touches[0].clientY, x: event.touches[0].clientX };
   }, { passive: true });
   addEventListener('touchend', event => {
     if (!touchStart || event.changedTouches.length !== 1 || modalOpen()) return;
     const dy = touchStart.y - event.changedTouches[0].clientY;
     const dx = touchStart.x - event.changedTouches[0].clientX;
-    const didScroll = Math.abs(scenes[active].scrollTop - touchStart.scrollTop) > 4;
     touchStart = null;
-    if (!didScroll && Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx) * 1.2) goTo(active + Math.sign(dy));
+    if (Math.abs(dy) > 45 && Math.abs(dy) > Math.abs(dx) * 1.2) goTo(active + Math.sign(dy));
   }, { passive: true });
 
   addEventListener('keydown', event => {
@@ -446,11 +430,11 @@
     if (event.key === ' ' && event.target?.closest?.('button, a')) return;
     if (['ArrowDown', 'PageDown', ' '].includes(event.key)) {
       event.preventDefault();
-      if (!scrollCurrentScene(event.key === 'ArrowDown' ? 72 : scenes[active].clientHeight * .75)) goTo(active + 1);
+      goTo(active + 1);
     }
     if (['ArrowUp', 'PageUp'].includes(event.key)) {
       event.preventDefault();
-      if (!scrollCurrentScene(event.key === 'ArrowUp' ? -72 : -scenes[active].clientHeight * .75)) goTo(active - 1);
+      goTo(active - 1);
     }
     if (event.key === 'Home') { event.preventDefault(); goTo(0, true); }
     if (event.key === 'End') { event.preventDefault(); goTo(scenes.length - 1, true); }
