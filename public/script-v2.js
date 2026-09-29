@@ -400,13 +400,25 @@
     }
   }
 
+  function scrollCurrentScene(amount) {
+    const scene = scenes[active];
+    const maxScroll = scene.scrollHeight - scene.clientHeight;
+    if (maxScroll < 2 || !amount) return false;
+    const position = scene.scrollTop;
+    if ((amount > 0 && position >= maxScroll - 2) || (amount < 0 && position <= 2)) return false;
+    scene.scrollTop = Math.max(0, Math.min(maxScroll, position + amount));
+    return true;
+  }
+
   addEventListener('wheel', event => {
     if (modalOpen() || event.ctrlKey || event.target?.closest?.('input, textarea')) return;
-    const currentScene = scenes[active];
-    const canScroll = currentScene.scrollHeight > currentScene.clientHeight + 2;
-    if (canScroll && ((event.deltaY > 0 && currentScene.scrollTop + currentScene.clientHeight < currentScene.scrollHeight - 2) || (event.deltaY < 0 && currentScene.scrollTop > 2))) return;
     event.preventDefault();
     if (traveling || Date.now() < lockedUntil) return;
+    const wheelPixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scenes[active].clientHeight : 1);
+    if (scrollCurrentScene(wheelPixels)) {
+      wheelAmount = 0;
+      return;
+    }
     wheelAmount += event.deltaY;
     clearTimeout(wheelTimer);
     wheelTimer = setTimeout(() => { wheelAmount = 0; }, 180);
@@ -430,9 +442,16 @@
   }, { passive: true });
 
   addEventListener('keydown', event => {
-    if (modalOpen() || event.target?.closest?.('input, textarea, select')) return;
-    if (['ArrowDown', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); goTo(active + 1); }
-    if (['ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); goTo(active - 1); }
+    if (modalOpen() || event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (event.key === ' ' && event.target?.closest?.('button, a')) return;
+    if (['ArrowDown', 'PageDown', ' '].includes(event.key)) {
+      event.preventDefault();
+      if (!scrollCurrentScene(event.key === 'ArrowDown' ? 72 : scenes[active].clientHeight * .75)) goTo(active + 1);
+    }
+    if (['ArrowUp', 'PageUp'].includes(event.key)) {
+      event.preventDefault();
+      if (!scrollCurrentScene(event.key === 'ArrowUp' ? -72 : -scenes[active].clientHeight * .75)) goTo(active - 1);
+    }
     if (event.key === 'Home') { event.preventDefault(); goTo(0, true); }
     if (event.key === 'End') { event.preventDefault(); goTo(scenes.length - 1, true); }
   });
