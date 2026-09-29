@@ -40,7 +40,9 @@ const escapeAttr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '
 
 function siteUrl(request) {
   const host = String(request.headers['x-forwarded-host'] || request.headers.host || 'localhost').split(',')[0].trim();
-  const proto = String(request.headers['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https')).split(',')[0].trim();
+  // The hosting proxy may forward "http" even when visitors use HTTPS.
+  const local = /^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(host);
+  const proto = local ? 'http' : 'https';
   return `${proto}://${host}`;
 }
 
