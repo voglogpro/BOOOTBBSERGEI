@@ -11,6 +11,11 @@
     'assets/scene-03-loop-web.mp4'
   ];
   const backgroundImages = [
+    'gallery/event-video-poster.jpg',
+    'gallery/event-fruit-table-thumb.jpg',
+    'gallery/event-boutique-guest-thumb.jpg',
+    'gallery/event-terrace-thumb.jpg',
+    'gallery/event-stage-thumb.jpg',
     'storyboard/02-hands-strawberry-approved.webp',
     'storyboard/03-fountain-left-approved.webp',
     'assets/fountain-poster-v2.webp',

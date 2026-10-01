@@ -8,6 +8,7 @@
   const dialog = document.getElementById('contact-dialog');
   const offerDialog = document.getElementById('offer-dialog');
   const cityDialog = document.getElementById('city-dialog');
+  const galleryDialog = document.getElementById('gallery-dialog');
   const formTemplate = document.getElementById('lead-form-template');
   const nextButton = document.querySelector('.scene-next');
   const nextLabel = document.getElementById('scene-next-label');
@@ -165,7 +166,7 @@
   }
   document.querySelectorAll('[data-goal]').forEach(link => link.addEventListener('click', () => goal(link.dataset.goal)));
 
-  const modalOpen = () => dialog.open || offerDialog.open || cityDialog.open;
+  const modalOpen = () => dialog.open || offerDialog.open || cityDialog.open || galleryDialog.open;
 
   function prepareVideo(scene) {
     scene.querySelectorAll('video[data-video]').forEach(video => {
@@ -462,6 +463,65 @@
   offerDialog.addEventListener('close', playCurrent);
   offerDialog.addEventListener('click', event => { if (event.target === offerDialog) offerDialog.close(); });
   reduceMotion.addEventListener('change', playCurrent);
+
+  // Real photos and video from events, opened full size with arrows, keys and swipes.
+  const galleryItems = [
+    { type: 'video', src: 'gallery/event-video.mp4', poster: 'gallery/event-video-poster.jpg', caption: 'Открытие бутика: гости у фонтана' },
+    { type: 'image', src: 'gallery/event-fruit-table.jpg', caption: 'Два фонтана и фруктовый стол' },
+    { type: 'image', src: 'gallery/event-boutique-guest.jpg', caption: 'Гостья у шоколадного фонтана' },
+    { type: 'image', src: 'gallery/event-terrace.jpg', caption: 'Летняя терраса' },
+    { type: 'image', src: 'gallery/event-stage.jpg', caption: 'Детский праздник на сцене' }
+  ];
+  const galleryFrame = galleryDialog.querySelector('[data-gallery-frame]');
+  const galleryCaption = galleryDialog.querySelector('[data-gallery-caption]');
+  let galleryIndex = 0;
+  function showGalleryItem(index) {
+    galleryIndex = (index + galleryItems.length) % galleryItems.length;
+    const item = galleryItems[galleryIndex];
+    let media;
+    if (item.type === 'video') {
+      media = document.createElement('video');
+      media.src = item.src;
+      media.poster = item.poster;
+      media.controls = true;
+      media.playsInline = true;
+      media.autoplay = true;
+      media.loop = true;
+    } else {
+      media = document.createElement('img');
+      media.src = item.src;
+      media.alt = item.caption;
+    }
+    galleryFrame.replaceChildren(media);
+    galleryCaption.textContent = `${item.caption} · ${galleryIndex + 1} из ${galleryItems.length}`;
+  }
+  document.querySelectorAll('[data-gallery-open]').forEach(button => button.addEventListener('click', () => {
+    showGalleryItem(Number(button.dataset.galleryOpen));
+    galleryDialog.showModal();
+    playCurrent();
+  }));
+  galleryDialog.querySelectorAll('[data-gallery-step]').forEach(button => button.addEventListener('click', () => showGalleryItem(galleryIndex + Number(button.dataset.galleryStep))));
+  galleryDialog.querySelector('[data-close-gallery]').addEventListener('click', () => galleryDialog.close());
+  galleryDialog.addEventListener('click', event => { if (event.target === galleryDialog) galleryDialog.close(); });
+  galleryDialog.addEventListener('close', () => {
+    galleryFrame.replaceChildren();
+    playCurrent();
+  });
+  galleryDialog.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft') showGalleryItem(galleryIndex - 1);
+    if (event.key === 'ArrowRight') showGalleryItem(galleryIndex + 1);
+  });
+  let gallerySwipe = null;
+  galleryDialog.addEventListener('touchstart', event => {
+    if (event.touches.length === 1) gallerySwipe = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+  galleryDialog.addEventListener('touchend', event => {
+    if (!gallerySwipe || event.changedTouches.length !== 1) return;
+    const dx = gallerySwipe.x - event.changedTouches[0].clientX;
+    const dy = gallerySwipe.y - event.changedTouches[0].clientY;
+    gallerySwipe = null;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) showGalleryItem(galleryIndex + Math.sign(dx));
+  }, { passive: true });
 
   function formatPhone(value) {
     let digits = value.replace(/\D/g, '');

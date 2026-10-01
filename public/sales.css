@@ -388,7 +388,7 @@ body.is-loading .scene-next{opacity:0}
 /* What we bring at our expense: big, plain icons */
 .treats{margin-top:22px;max-width:640px}
 .treats-title{margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#f4d3b4}
-.treats-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.treats-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
 .treats-list li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:14px 8px 12px;border:1px solid rgba(255,230,213,.34);background:rgba(28,13,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .treat-icon{width:52px;height:52px;margin-bottom:8px;padding:10px;border:1px solid rgba(242,213,180,.38);border-radius:14px;background:linear-gradient(145deg,rgba(242,213,180,.2),rgba(242,213,180,.055));color:#f0cda6;stroke-width:1.3}
 .treats-list b{font-size:16px;font-weight:700;color:#fff6ec}
@@ -416,11 +416,11 @@ body.is-loading .scene-next{opacity:0}
 .channel-whatsapp:hover svg{color:#fff}
 .form-status b{color:#1f6b3a}
 .mobile-bar-book svg{width:19px;height:19px}
-@media(max-width:1000px) and (min-width:701px){.treats-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1000px) and (min-width:701px){.treats-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){
   .treats{margin-top:14px}
   .treats-title{font-size:10px;margin-bottom:8px}
-  .treats-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .treats-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
   .treats-list li{padding:10px 3px 9px}
   .treat-icon{width:42px;height:42px;padding:9px;margin-bottom:5px}
   .treats-list b{font-size:12.5px}

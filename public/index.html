@@ -12,7 +12,7 @@
     <meta property="og:url" content="%PAGE_URL%" />
     <meta property="og:site_name" content="Шоколадная фабрика" />
     <meta property="og:title" content="Шоколадная фабрика — шоколадный фонтан %CITY_IN%" />
-    <meta property="og:description" content="Привезём, установим и обслужим. Бельгийский шоколад Barry Callebaut, клубника, бананы, маршмеллоу и мастер у фонтана. Пакет «Всё включено» — 12 000 ₽." />
+    <meta property="og:description" content="Привезём, установим и обслужим. Бельгийский шоколад Barry Callebaut, бананы, маршмеллоу и мастер у фонтана. Пакет «Всё включено» — 12 000 ₽." />
     <meta property="og:image" content="%SITE_URL%/assets/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -26,14 +26,15 @@
     <link rel="stylesheet" href="premium.css?v=8" />
     <link rel="stylesheet" href="offer.css?v=8" />
     <link rel="stylesheet" href="loader.css?v=8" />
-    <link rel="stylesheet" href="sales.css?v=10" />
+    <link rel="stylesheet" href="sales.css?v=11" />
     <link rel="stylesheet" href="slides.css?v=1" />
+    <link rel="stylesheet" href="gallery.css?v=1" />
     <script type="application/ld+json">%LD_JSON%</script>
     <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
     <script defer src="telegram-init.js"></script>
     <script defer src="site-config.js?v=10"></script>
-    <script defer src="preloader.js?v=8"></script>
-    <script defer src="script-v2.js?v=10"></script>
+    <script defer src="preloader.js?v=9"></script>
+    <script defer src="script-v2.js?v=11"></script>
   </head>
   <body class="is-loading">
     <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -56,6 +57,9 @@
       <symbol id="i-knife" viewBox="0 0 24 24"><path d="M3 21 14.5 9.5M14.5 9.5l5.2-5.2a1.6 1.6 0 0 1 2.3 2.3c-1.4 3.2-3.8 5.6-7 7L13 12"/><path d="m6.5 17.5 2 2"/></symbol>
       <symbol id="i-marshmallow" viewBox="0 0 24 24"><g stroke="none"><path d="M12 2v20" stroke="#b58c61" stroke-width="1.7" stroke-linecap="round"/><rect x="5.6" y="3.4" width="12.8" height="7.2" rx="3.3" fill="#f3e2cf"/><rect x="5.6" y="12.5" width="12.8" height="7.2" rx="3.3" fill="#e7cec1"/><path d="M8.2 5.5h5.2M8.2 14.6h5.2" stroke="#fff8e9" stroke-width="1.1" stroke-linecap="round"/></g></symbol>
       <symbol id="i-fruit-set" viewBox="0 0 24 24"><g stroke="none"><path d="M3 15h18l-2.4 5H5.4Z" fill="#be926c"/><path d="M4.8 16h14.4" stroke="#f2d5a9" stroke-width="1"/><path d="M5.7 14c2.5.5 5.3-.3 6.9-3.1.7-1.2 1.1-2.6 1.2-4l1.6-.2c1.1 4.8-2.2 8.9-6.8 9.4-1.2.1-2.3 0-3.2-.4Z" fill="#eac57e"/><path d="M15.4 8.9c-2.3-.9-4 .4-3.9 2.7.1 2.4 2 4.4 3.9 4.7 1.8-.3 3.7-2.3 3.8-4.7.1-2.3-1.6-3.6-3.8-2.7Z" fill="#b34b50"/><path d="m15.4 9.5-2.7.3 1.4-1.5-1.5-.5 2-.1.8-1.6.8 1.6 2 .1-1.5.5 1.4 1.5Z" fill="#87906a"/><circle cx="8.2" cy="12.4" r="2.1" fill="#f2e5d4"/></g></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5Z"/></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
       <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13.5 15-14-.4 10-6 15-14 15"/><path d="M5 19c3-4 6-6.5 9.5-8.5"/></symbol>
     </svg>
 
@@ -89,10 +93,10 @@
         <span class="brand-name"><span class="brand-title">Шоколадная фабрика</span></span>
       </a>
       <nav class="desktop-nav" aria-label="Разделы сайта">
-        <a href="#intro" data-go="0">Главная</a>
         <a href="#experience" data-go="1">Впечатления</a>
-        <a href="#details" data-go="2">Пакет и цена</a>
-        <a href="#booking" data-go="3">Как заказать</a>
+        <a href="#details" data-go="2">Цена</a>
+        <a href="#gallery" data-go="3">Фото и видео</a>
+        <a href="#booking" data-go="4">Как заказать</a>
       </nav>
       <button class="city-switch" type="button" data-open-city aria-label="Сменить город"><svg aria-hidden="true"><use href="#i-route" /></svg><span data-city-name>Выберите город</span><svg class="city-chevron" aria-hidden="true"><use href="#i-chevron" /></svg></button>
       <a class="header-phone" data-phone data-goal="phone" href="tel:+79613237733"><svg aria-hidden="true"><use href="#i-phone" /></svg><span data-phone-text>8 961 323-77-33</span></a>
@@ -108,7 +112,7 @@
         <div class="scene-content intro-content">
           <p class="eyebrow"><span class="eyebrow-line"></span> Выездной фуршет · <span data-city-name>Краснодар</span></p>
           <h1>Шоколадный фонтан&nbsp;—<br /><em>звезда вашего праздника.</em></h1>
-          <p class="lead">Привезём, установим и обслужим. Бельгийский шоколад Barry Callebaut, клубника, бананы, маршмеллоу и мастер у фонтана — а вы просто наслаждаетесь праздником вместе с гостями.</p>
+          <p class="lead">Привезём, установим и обслужим. Бельгийский шоколад Barry Callebaut, бананы, маршмеллоу и мастер у фонтана — а вы просто наслаждаетесь праздником вместе с гостями.</p>
           <div class="hero-price">
             <strong data-price>12 000 ₽</strong>
             <span>пакет «Всё включено» <br />выезд <span data-city-prep>по Краснодару</span> — бесплатно</span>
@@ -133,12 +137,11 @@
         <div class="scene-content experience-content">
           <p class="eyebrow"><span class="eyebrow-line"></span> Вкус, ради которого возвращаются</p>
           <h2>Гости не отходят<br /><em>от фонтана.</em></h2>
-          <p class="section-lead">Тёплый шоколад струится по пяти ярусам, а рядом ждут клубника, бананы и маршмеллоу. Фонтан быстро становится любимым местом гостей.</p>
+          <p class="section-lead">Тёплый шоколад струится по пяти ярусам, а рядом ждут бананы и маршмеллоу. Фонтан быстро становится любимым местом гостей.</p>
           <div class="treats">
             <p class="treats-title">Привозим за наш счёт</p>
             <ul class="treats-list" aria-label="Что входит в стоимость">
               <li><svg class="treat-icon" aria-hidden="true"><use href="#i-chocolate" /></svg><b>Шоколад</b><small>3,5 кг Barry Callebaut</small></li>
-              <li><svg class="treat-icon" aria-hidden="true"><use href="#i-strawberry" /></svg><b>Клубника</b><small>свежая, на шпажках</small></li>
               <li><svg class="treat-icon" aria-hidden="true"><use href="#i-banana" /></svg><b>Бананы</b><small>нарезаем на месте</small></li>
               <li><svg class="treat-icon" aria-hidden="true"><use href="#i-marshmallow" /></svg><b>Маршмеллоу</b><small>на шпажках</small></li>
             </ul>
@@ -163,10 +166,10 @@
           <ul class="details-grid" aria-label="Что мы привозим">
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-fountain" /></svg><div><p>Фонтан</p><strong>5 ярусов · 80 см</strong><small>Эффектный центр любого стола</small></div></li>
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-chocolate" /></svg><div><p>Шоколад</p><strong>3,5 кг</strong><small>Бельгийский Barry Callebaut</small></div></li>
-            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-fruit-set" /></svg><div><p>За наш счёт</p><strong>Клубника, бананы, маршмеллоу</strong><small>Уже в стоимости пакета</small></div></li>
+            <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-fruit-set" /></svg><div><p>За наш счёт</p><strong>Бананы и маршмеллоу</strong><small>Уже в стоимости пакета</small></div></li>
             <li class="detail-card"><svg class="detail-icon" aria-hidden="true"><use href="#i-master" /></svg><div><p>Мастер и выезд</p><strong>0 ₽ доставка</strong><small>Мастер у фонтана, выезд <span data-city-prep>по Краснодару</span></small></div></li>
           </ul>
-          <p class="fruit-note"><svg aria-hidden="true"><use href="#i-knife" /></svg><span><b>Хотите ананас, виноград или что-то ещё?</b> Договоримся в переписке, а свои фрукты нарежем бесплатно.</span></p>
+          <p class="fruit-note"><svg aria-hidden="true"><use href="#i-knife" /></svg><span><b>Хотите клубнику, ананас или виноград?</b> Договоримся в переписке, а свои фрукты нарежем бесплатно.</span></p>
           <div class="details-actions">
             <button class="button button-light" type="button" data-open-contact>Договориться <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
             <button class="details-link" type="button" data-open-offer>Подробнее о пакете <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
@@ -174,7 +177,27 @@
         </div>
       </section>
 
-      <section class="scene scene-booking" id="booking" data-index="3" aria-label="Как заказать" aria-hidden="true">
+      <section class="scene scene-gallery" id="gallery" data-index="3" aria-label="Наши праздники" aria-hidden="true">
+        <div class="scene-media gallery-media"></div>
+        <div class="scene-shade gallery-shade"></div>
+        <div class="scene-content gallery-content">
+          <div class="gallery-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> Живые кадры</p>
+            <h2>Наши<br /><em>праздники.</em></h2>
+            <p class="section-lead">Настоящие фото и видео с наших мероприятий — без постановки и фильтров. Нажмите, чтобы посмотреть крупно.</p>
+            <button class="button button-light" type="button" data-open-contact>Хочу так же <svg aria-hidden="true"><use href="#i-arrow" /></svg></button>
+          </div>
+          <ul class="gallery-grid" aria-label="Фото и видео с мероприятий">
+            <li class="gallery-item gallery-item-video"><button type="button" data-gallery-open="0" aria-label="Смотреть видео с мероприятия"><video data-video="gallery/event-video.mp4" poster="gallery/event-video-poster.jpg" muted loop playsinline preload="none" aria-hidden="true"></video><span class="gallery-badge"><svg aria-hidden="true"><use href="#i-play" /></svg>Видео со звуком</span></button></li>
+            <li class="gallery-item"><button type="button" data-gallery-open="1" aria-label="Открыть фото: фруктовый стол с двумя фонтанами"><img src="gallery/event-fruit-table-thumb.jpg" alt="Два шоколадных фонтана и фруктовый стол на открытии бутика" loading="lazy" decoding="async" /></button></li>
+            <li class="gallery-item"><button type="button" data-gallery-open="2" aria-label="Открыть фото: гостья у фонтана"><img src="gallery/event-boutique-guest-thumb.jpg" alt="Гостья макает угощение в шоколадный фонтан" loading="lazy" decoding="async" /></button></li>
+            <li class="gallery-item"><button type="button" data-gallery-open="3" aria-label="Открыть фото: фонтан на летней террасе"><img src="gallery/event-terrace-thumb.jpg" alt="Шоколадный фонтан и ягоды на летней террасе" loading="lazy" decoding="async" /></button></li>
+            <li class="gallery-item"><button type="button" data-gallery-open="4" aria-label="Открыть фото: детский праздник на сцене"><img src="gallery/event-stage-thumb.jpg" alt="Дети у шоколадного фонтана на праздничном концерте" loading="lazy" decoding="async" /></button></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="scene scene-booking" id="booking" data-index="4" aria-label="Как заказать" aria-hidden="true">
         <div class="scene-media booking-media"></div>
         <div class="scene-shade booking-shade"></div>
         <div class="scene-content booking-content">
@@ -231,7 +254,6 @@
           <ul class="offer-list">
             <li><svg aria-hidden="true"><use href="#i-fountain" /></svg>Фонтан 5 ярусов, высота 80 см</li>
             <li><svg aria-hidden="true"><use href="#i-chocolate" /></svg>3,5 кг бельгийского шоколада Barry Callebaut</li>
-            <li><svg aria-hidden="true"><use href="#i-strawberry" /></svg>Клубника</li>
             <li><svg aria-hidden="true"><use href="#i-banana" /></svg>Бананы</li>
             <li><svg aria-hidden="true"><use href="#i-marshmallow" /></svg>Маршмеллоу на шпажках</li>
             <li><svg aria-hidden="true"><use href="#i-master" /></svg>Обслуживание фонтана на мероприятии</li>
@@ -257,6 +279,13 @@
       </div>
     </dialog>
 
+    <dialog class="gallery-dialog" id="gallery-dialog" aria-label="Фото и видео с мероприятий">
+      <button class="dialog-close" type="button" data-close-gallery aria-label="Закрыть">×</button>
+      <button class="gallery-nav gallery-prev" type="button" data-gallery-step="-1" aria-label="Предыдущее"><svg aria-hidden="true"><use href="#i-prev" /></svg></button>
+      <figure class="gallery-stage"><div class="gallery-frame" data-gallery-frame></div><figcaption data-gallery-caption></figcaption></figure>
+      <button class="gallery-nav gallery-next" type="button" data-gallery-step="1" aria-label="Следующее"><svg aria-hidden="true"><use href="#i-next" /></svg></button>
+    </dialog>
+
     <dialog class="city-dialog" id="city-dialog" aria-labelledby="city-dialog-title">
       <button class="dialog-close" type="button" data-close-city aria-label="Закрыть">×</button>
       <p class="eyebrow"><span class="eyebrow-line"></span> Шоколадная фабрика</p>
@@ -273,8 +302,8 @@
 
     <button class="scene-next" type="button" data-next><span>Далее</span><b id="scene-next-label">Впечатления</b><svg aria-hidden="true"><use href="#i-down" /></svg></button>
     <div class="site-footer"><span>Шоколадная фабрика · <span data-city-name>Краснодар</span></span><span>© <span id="year"></span></span></div>
-    <div class="scene-rail" aria-hidden="true"><span class="rail-current" id="current-index">01</span><span class="rail-line"><span id="rail-progress"></span></span><span id="rail-total">04</span></div>
-    <div class="scene-dots" aria-label="Выбор экрана"><button type="button" data-go="0" class="is-current" aria-label="Главная"></button><button type="button" data-go="1" aria-label="Впечатления"></button><button type="button" data-go="2" aria-label="Пакет и цена"></button><button type="button" data-go="3" aria-label="Как заказать"></button></div>
+    <div class="scene-rail" aria-hidden="true"><span class="rail-current" id="current-index">01</span><span class="rail-line"><span id="rail-progress"></span></span><span id="rail-total">05</span></div>
+    <div class="scene-dots" aria-label="Выбор экрана"><button type="button" data-go="0" class="is-current" aria-label="Главная"></button><button type="button" data-go="1" aria-label="Впечатления"></button><button type="button" data-go="2" aria-label="Пакет и цена"></button><button type="button" data-go="3" aria-label="Наши праздники"></button><button type="button" data-go="4" aria-label="Как заказать"></button></div>
 
     <template id="lead-form-template">
       <form class="contact-form lead-form" novalidate>
