@@ -33,7 +33,8 @@ const mimeTypes = {
   '.mp4': 'video/mp4',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
-  '.webp': 'image/webp'
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2'
 };
 
 const escapeAttr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

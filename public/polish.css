@@ -1,0 +1,18 @@
+/* Последние правки оформления. Файл подключается последним и перекрывает остальные стили. */
+
+/* Страховка: если скрипты не загрузились, заставка всё равно уходит, и посетитель видит сайт. */
+.site-loader{animation:loader-failsafe .6s ease 9s forwards}
+@keyframes loader-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
+
+/* Метка над готовым сообщением — в тон сайта, а не системным синим. */
+.msg-to{color:#9a5b33}
+
+@media(max-width:700px){
+  /* На телефоне подсказка «Далее» и счётчик экранов наезжали на кнопки и фото.
+     Экраны листаются свайпом, поэтому оставляем подсказку только на первом экране, справа. */
+  .scene-rail{display:none}
+  .scene-next{left:auto;right:12px;bottom:calc(74px + env(safe-area-inset-bottom))}
+  body:not([data-scene=intro]) .scene-next{display:none}
+  /* Город в шапке не обрезается многоточием. */
+  .city-switch [data-city-name]{max-width:none;overflow:visible;text-overflow:clip}
+}

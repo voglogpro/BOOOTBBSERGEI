@@ -12,7 +12,8 @@
   const formTemplate = document.getElementById('lead-form-template');
   const nextButton = document.querySelector('.scene-next');
   const nextLabel = document.getElementById('scene-next-label');
-  const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  // Telegram's script loads in the background inside the Mini App, so read the user when needed.
+  const tgUser = () => window.Telegram?.WebApp?.initDataUnsafe?.user;
   const journeyVideos = {
     1: document.getElementById('journey-video'),
     2: document.getElementById('journey-video-23')
@@ -570,7 +571,7 @@
       company: String(data.get('company') || ''),
       city: cityKey,
       channel,
-      telegram: telegramUser?.username ? '@' + telegramUser.username : '',
+      telegram: tgUser()?.username ? '@' + tgUser().username : '',
       page: location.href
     };
   }
@@ -635,7 +636,11 @@
     const fields = form.querySelector('.lead-fields');
     const success = form.querySelector('.lead-success');
     form.elements.date.min = minDate;
-    if (telegramUser?.first_name) form.elements.name.value = telegramUser.first_name;
+    const fillTelegramName = () => {
+      if (tgUser()?.first_name && !form.elements.name.value) form.elements.name.value = tgUser().first_name;
+    };
+    fillTelegramName();
+    document.addEventListener('telegram-ready', fillTelegramName, { once: true });
 
     phone.addEventListener('input', () => {
       const formatted = formatPhone(phone.value);
